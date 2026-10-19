@@ -1,0 +1,148 @@
+{
+  "id": "d1",
+  "name": "Python 基础",
+  "category": "card",
+  "description": "Python 语法、容器、函数与面向对象基础",
+  "color": "#3B5BDB",
+  "tags": ["Python", "编程基础"],
+  "order": 1,
+  "items": [
+    {
+      "id": "c1",
+      "type": "knowledge",
+      "title": "Python 列表 (List)",
+      "content": "列表是有序的可变序列，支持增删改查。\n\n• 创建：lst = [1, 2, 3]\n• 追加：lst.append(4)\n• 切片：lst[1:3]\n• 长度：len(lst)\n• 排序：lst.sort() 或 sorted(lst)",
+      "tags": ["记忆卡片", "数据类型", "容器"],
+      "chapter": "基础语法",
+      "difficulty": 2
+    },
+    {
+      "id": "c2",
+      "type": "knowledge",
+      "title": "Python 字典 (Dict)",
+      "content": "字典是键值对集合（Python 3.7+ 保持插入顺序）。\n\n• 创建：d = {'key': 'value'}\n• 访问：d['key'] 或 d.get('key', default)\n• 遍历：for k, v in d.items():\n• 存在检查：'key' in d\n• 删除：del d['key']",
+      "tags": ["记忆卡片", "数据类型", "容器"],
+      "chapter": "基础语法",
+      "difficulty": 2
+    },
+    {
+      "id": "c3",
+      "type": "cloze",
+      "title": "列表切片语法",
+      "paragraphs": [
+        {
+          "id": "p1",
+          "segments": [
+            { "type": "text", "text": "Python 列表切片语法：" }
+          ]
+        },
+        {
+          "id": "p2",
+          "segments": [
+            { "type": "text", "text": "lst[" },
+            { "type": "blank", "id": "b1", "answer": "start" },
+            { "type": "text", "text": ":" },
+            { "type": "blank", "id": "b2", "answer": "end" },
+            { "type": "text", "text": ":" },
+            { "type": "blank", "id": "b3", "answer": "step" },
+            { "type": "text", "text": "]" }
+          ]
+        },
+        {
+          "id": "p3",
+          "segments": [
+            { "type": "text", "text": "第一个是" },
+            { "type": "blank", "id": "b4", "answer": "起始" },
+            { "type": "text", "text": "索引，第二个是" },
+            { "type": "blank", "id": "b5", "answer": "终止" },
+            { "type": "text", "text": "索引（不含），第三个是" },
+            { "type": "blank", "id": "b6", "answer": "步长" },
+            { "type": "text", "text": "（默认为1）。" }
+          ]
+        }
+      ],
+      "analysis": "切片语法为 lst[start:end:step]，end 不包含，step 默认为 1。",
+      "tags": ["填空题", "数据类型", "语法"],
+      "chapter": "基础语法",
+      "difficulty": 2
+    },
+    {
+      "id": "c4",
+      "type": "knowledge",
+      "title": "Python 函数定义",
+      "content": "使用 def 关键字定义函数：\n\ndef greet(name, greeting='Hello'):\n    \"\"\"函数文档字符串\"\"\"\n    return f\"{greeting}, {name}!\"\n\n支持：默认参数、关键字参数\n*args（可变位置参数）、**kwargs（可变关键字参数）",
+      "tags": ["记忆卡片", "函数", "语法"],
+      "chapter": "函数",
+      "difficulty": 2
+    },
+    {
+      "id": "c5",
+      "type": "cloze",
+      "title": "Python 类定义",
+      "paragraphs": [
+        {
+          "id": "p1",
+          "segments": [
+            { "type": "text", "text": "Python 类定义：" }
+          ]
+        },
+        {
+          "id": "p2",
+          "segments": [
+            { "type": "text", "text": "class Animal(" },
+            { "type": "blank", "id": "b1", "answer": "object" },
+            { "type": "text", "text": "):" }
+          ]
+        },
+        {
+          "id": "p3",
+          "segments": [
+            { "type": "text", "text": "    def " },
+            { "type": "blank", "id": "b2", "answer": "__init__" },
+            { "type": "text", "text": "(self, name):" }
+          ]
+        },
+        {
+          "id": "p4",
+          "segments": [
+            { "type": "text", "text": "        " },
+            { "type": "blank", "id": "b3", "answer": "self" },
+            { "type": "text", "text": ".name = name" }
+          ]
+        },
+        {
+          "id": "p5",
+          "segments": [
+            { "type": "text", "text": "class Dog(Animal):" }
+          ]
+        },
+        {
+          "id": "p6",
+          "segments": [
+            { "type": "text", "text": "    def speak(self):" }
+          ]
+        },
+        {
+          "id": "p7",
+          "segments": [
+            { "type": "text", "text": "        return f\"{self.name}: 汪！\"" }
+          ]
+        }
+      ],
+      "analysis": "Python 3 中类默认继承 object；__init__ 是构造方法；self 指向实例本身。",
+      "tags": ["填空题", "面向对象", "语法"],
+      "chapter": "面向对象",
+      "difficulty": 3
+    },
+    {
+      "id": "c6",
+      "type": "knowledge",
+      "title": "列表推导式 & 生成器",
+      "content": "列表推导式（一次性生成）：\n[x**2 for x in range(10) if x % 2 == 0]\n\n生成器表达式（惰性求值，节省内存）：\n(x**2 for x in range(10) if x % 2 == 0)\n\n字典推导式：\n{k: v for k, v in zip(keys, values)}",
+      "image": "https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?w=560&h=200&fit=crop&auto=format",
+      "tags": ["记忆卡片", "数据类型", "高级特性"],
+      "chapter": "高级特性",
+      "difficulty": 3
+    }
+  ]
+}

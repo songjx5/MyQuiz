@@ -1,0 +1,147 @@
+{
+  "id": "d2",
+  "name": "计算机网络",
+  "category": "question",
+  "description": "HTTP、TCP、DNS 等计算机网络基础题",
+  "color": "#0CA678",
+  "tags": ["计算机网络"],
+  "source": {
+    "book": "计算机网络（第8版）",
+    "author": "谢希仁",
+    "publisher": "电子工业出版社"
+  },
+  "order": 2,
+  "items": [
+    {
+      "id": "q1",
+      "type": "single",
+      "stem": "在 OSI 七层参考模型中，传输层是第几层？",
+      "options": [
+        { "key": "A", "text": "第三层（网络层）" },
+        { "key": "B", "text": "第四层（传输层）" },
+        { "key": "C", "text": "第五层（会话层）" },
+        { "key": "D", "text": "第六层（表示层）" }
+      ],
+      "answer": ["B"],
+      "analysis": "传输层是 OSI 模型的第四层，负责端到端的通信，提供可靠数据传输。主要协议：TCP（面向连接、可靠）和 UDP（无连接、高效）。",
+      "tags": ["单选题", "OSI模型", "基础概念"],
+      "chapter": "网络基础",
+      "difficulty": 1
+    },
+    {
+      "id": "q2",
+      "type": "multi",
+      "stem": "以下哪些是 HTTP/1.1 的标准请求方法？（多选）",
+      "options": [
+        { "key": "A", "text": "GET" },
+        { "key": "B", "text": "POST" },
+        { "key": "C", "text": "FETCH" },
+        { "key": "D", "text": "DELETE" },
+        { "key": "E", "text": "PATCH" },
+        { "key": "F", "text": "LOAD" }
+      ],
+      "answer": ["A", "B", "D", "E"],
+      "analysis": "HTTP/1.1 标准方法：GET、POST、PUT、DELETE、PATCH、HEAD、OPTIONS、CONNECT、TRACE。FETCH 是浏览器 Web API，LOAD 不是 HTTP 方法。",
+      "tags": ["多选题", "HTTP", "协议"],
+      "chapter": "HTTP",
+      "difficulty": 3
+    },
+    {
+      "id": "q3",
+      "type": "judge",
+      "stem": "HTTP 协议是无状态协议，每次请求都是独立的，服务器不会自动记住之前的请求信息。",
+      "answer": ["正确"],
+      "analysis": "正确。HTTP 是无状态协议。为维持用户状态，需借助 Cookie（客户端存储）、Session（服务端存储）或 JWT Token 等机制。",
+      "tags": ["单选题", "HTTP", "协议"],
+      "chapter": "HTTP",
+      "difficulty": 1
+    },
+    {
+      "id": "q4",
+      "type": "cloze",
+      "title": "HTTP 常用端口",
+      "paragraphs": [
+        {
+          "id": "p1",
+          "segments": [
+            { "type": "text", "text": "HTTP 默认端口" },
+            { "type": "blank", "id": "b1", "answer": "80" },
+            { "type": "text", "text": "，HTTPS 默认端口" },
+            { "type": "blank", "id": "b2", "answer": "443" },
+            { "type": "text", "text": "。DNS 使用" },
+            { "type": "blank", "id": "b3", "answer": "53" },
+            { "type": "text", "text": "端口，SSH 使用" },
+            { "type": "blank", "id": "b4", "answer": "22" },
+            { "type": "text", "text": "端口。" }
+          ]
+        }
+      ],
+      "analysis": "常用端口：HTTP(80)、HTTPS(443)、DNS(53)、SSH(22)、FTP(21)、SMTP(25)、MySQL(3306)、Redis(6379)。",
+      "tags": ["填空题", "协议", "基础概念"],
+      "chapter": "网络基础",
+      "difficulty": 2
+    },
+    {
+      "id": "q5",
+      "type": "single",
+      "stem": "TCP 三次握手中，第一次握手客户端发送的报文标志位是？",
+      "options": [
+        { "key": "A", "text": "SYN=1, ACK=0" },
+        { "key": "B", "text": "SYN=1, ACK=1" },
+        { "key": "C", "text": "SYN=0, ACK=1" },
+        { "key": "D", "text": "FIN=1, ACK=0" }
+      ],
+      "answer": ["A"],
+      "analysis": "第一次握手：Client → Server，发送 SYN=1 表示请求建立连接，ACK=0（还未收到需确认内容），同时生成初始序列号 ISN。",
+      "tags": ["单选题", "TCP", "协议"],
+      "chapter": "TCP",
+      "difficulty": 3
+    },
+    {
+      "id": "q6",
+      "type": "multi",
+      "stem": "关于 DNS，下列说法正确的是？（多选）",
+      "options": [
+        { "key": "A", "text": "DNS 可将域名解析为 IP 地址" },
+        { "key": "B", "text": "DNS 支持反向解析（IP → 域名）" },
+        { "key": "C", "text": "DNS 默认使用 TCP 协议传输" },
+        { "key": "D", "text": "DNS 可通过多条 A 记录实现简单负载均衡" },
+        { "key": "E", "text": "DNSSEC 可防止 DNS 缓存中毒" }
+      ],
+      "answer": ["A", "B", "D", "E"],
+      "analysis": "DNS 通常用 UDP(53)，响应超过 512 字节时用 TCP。DNS 支持正向/反向解析、简单负载均衡，DNSSEC 通过数字签名防止记录篡改。",
+      "tags": ["多选题", "DNS", "协议"],
+      "chapter": "DNS",
+      "difficulty": 3
+    },
+    {
+      "id": "c7",
+      "type": "cloze",
+      "title": "HTTP 基础完型",
+      "paragraphs": [
+        {
+          "id": "p1",
+          "segments": [
+            { "type": "text", "text": "HTTP 默认端口是 " },
+            { "type": "blank", "id": "b1", "answer": "80", "hint": "数字" },
+            { "type": "text", "text": "，HTTPS 默认端口是 " },
+            { "type": "blank", "id": "b2", "answer": "443" },
+            { "type": "text", "text": "。" }
+          ]
+        },
+        {
+          "id": "p2",
+          "segments": [
+            { "type": "text", "text": "HTTP 是无状态协议，通常基于 " },
+            { "type": "blank", "id": "b3", "answer": "TCP", "alternatives": ["传输控制协议"] },
+            { "type": "text", "text": " 传输。" }
+          ]
+        }
+      ],
+      "analysis": "HTTP 默认 80，HTTPS 默认 443，HTTP 通常基于 TCP。",
+      "tags": ["填空题", "HTTP", "端口"],
+      "chapter": "HTTP",
+      "difficulty": 2
+    }
+  ]
+}

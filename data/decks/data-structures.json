@@ -1,0 +1,95 @@
+{
+  "id": "d4",
+  "name": "数据结构",
+  "category": "question",
+  "description": "排序、树、哈希表与算法复杂度",
+  "color": "#AE3EC9",
+  "tags": ["数据结构", "算法"],
+  "order": 4,
+  "items": [
+    {
+      "id": "ds1",
+      "type": "single",
+      "stem": "快速排序（Quick Sort）的平均时间复杂度是？",
+      "options": [
+        { "key": "A", "text": "O(n)" },
+        { "key": "B", "text": "O(n log n)" },
+        { "key": "C", "text": "O(n²)" },
+        { "key": "D", "text": "O(log n)" }
+      ],
+      "answer": ["B"],
+      "analysis": "快速排序平均 O(n log n)。每次选基准将数组分两半分别递归。最坏情况 O(n²)（每次选到最大/最小值），随机化选取基准可避免。",
+      "tags": ["单选题", "排序", "算法复杂度"],
+      "chapter": "排序",
+      "difficulty": 2
+    },
+    {
+      "id": "ds2",
+      "type": "judge",
+      "stem": "二叉搜索树（BST）的中序遍历（左 → 根 → 右）结果是从小到大有序的。",
+      "answer": ["正确"],
+      "analysis": "正确。BST 性质：左子树所有值 < 根节点值 < 右子树所有值。中序遍历按升序访问所有节点，可用于树排序。",
+      "tags": ["单选题", "树", "二叉树"],
+      "chapter": "树",
+      "difficulty": 2
+    },
+    {
+      "id": "ds3",
+      "type": "multi",
+      "stem": "以下数据结构中，可以用来实现队列（Queue）的有？（多选）",
+      "options": [
+        { "key": "A", "text": "数组（循环队列）" },
+        { "key": "B", "text": "链表" },
+        { "key": "C", "text": "两个栈" },
+        { "key": "D", "text": "双端队列（Deque）" },
+        { "key": "E", "text": "二叉树" }
+      ],
+      "answer": ["A", "B", "C", "D"],
+      "analysis": "队列可用：数组（循环队列避免假溢出）、链表（动态扩展）、两个栈（一进一出模拟）、双端队列（限制一端操作）。二叉树不具备 FIFO 特性。",
+      "tags": ["多选题", "队列", "基础结构"],
+      "chapter": "队列",
+      "difficulty": 3
+    },
+    {
+      "id": "ds4",
+      "type": "cloze",
+      "title": "哈希表查找与冲突",
+      "paragraphs": [
+        {
+          "id": "p1",
+          "segments": [
+            { "type": "text", "text": "哈希表平均查找时间复杂度" },
+            { "type": "blank", "id": "b1", "answer": "O(1)" },
+            { "type": "text", "text": "，最坏情况" },
+            { "type": "blank", "id": "b2", "answer": "O(n)" },
+            { "type": "text", "text": "。解决冲突的两种方法：" },
+            { "type": "blank", "id": "b3", "answer": "链地址" },
+            { "type": "text", "text": "法（每槽维护链表）和" },
+            { "type": "blank", "id": "b4", "answer": "开放地址" },
+            { "type": "text", "text": "法（探测下一个空槽）。" }
+          ]
+        }
+      ],
+      "analysis": "哈希表通过哈希函数将键映射到数组索引，平均 O(1)。冲突解决：链地址法（拉链法）将冲突元素存入链表；开放地址法在表内寻找下一个空位。",
+      "tags": ["填空题", "哈希表", "算法复杂度"],
+      "chapter": "哈希表",
+      "difficulty": 3
+    },
+    {
+      "id": "ds5",
+      "type": "single",
+      "stem": "含 n 个节点的完全二叉树，其高度为（根节点高度为 1）？",
+      "options": [
+        { "key": "A", "text": "⌊log₂n⌋" },
+        { "key": "B", "text": "⌊log₂n⌋ + 1" },
+        { "key": "C", "text": "⌈log₂n⌉" },
+        { "key": "D", "text": "⌈log₂(n+1)⌉" }
+      ],
+      "answer": ["D"],
+      "analysis": "完全二叉树高度为 ⌈log₂(n+1)⌉。例：n=7（满二叉树），高度=3=⌈log₂8⌉；n=8，高度=4=⌈log₂9⌉。与 ⌊log₂n⌋+1 等价。",
+      "tags": ["单选题", "树", "算法复杂度"],
+      "chapter": "树",
+      "difficulty": 4
+    }
+  ]
+}

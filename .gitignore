@@ -1,0 +1,40 @@
+# 依赖
+node_modules/
+.npm-cache/
+.pnpm-store/
+
+# 构建产物
+dist/
+*.tsbuildinfo
+
+# 本地临时文件 / 测试产物
+.tmp/
+coverage/
+
+# 环境变量（保留 .env.example 作为模板）
+.env
+.env.*
+!.env.example
+
+# SQLite 运行时文件（内容可由 data/decks 重建；进度请用 npm run db:backup 备份）
+data/*.db*
+*.sqlite
+*.sqlite3
+data/export/
+
+# 数据库备份
+backups/
+
+# 日志
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

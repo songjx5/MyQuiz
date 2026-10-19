@@ -1,0 +1,88 @@
+{
+  "id": "d3",
+  "name": "操作系统",
+  "category": "card",
+  "description": "进程、线程、内存管理、调度与死锁",
+  "color": "#E67700",
+  "tags": ["操作系统", "计算机基础"],
+  "order": 3,
+  "items": [
+    {
+      "id": "os1",
+      "type": "knowledge",
+      "title": "进程 vs 线程",
+      "content": "进程：资源分配基本单位，拥有独立的地址空间\n线程：CPU 调度基本单位，共享进程的地址空间\n\n区别：\n• 进程间通信（IPC）较复杂，线程通信简单\n• 进程切换开销大，线程切换开销小\n• 一个进程可包含多个线程\n• 一个线程崩溃可能导致整个进程终止",
+      "image": "https://images.unsplash.com/photo-1518770660439-4636190af475?w=560&h=200&fit=crop&auto=format",
+      "tags": ["记忆卡片", "进程管理", "并发"],
+      "chapter": "进程管理",
+      "difficulty": 3
+    },
+    {
+      "id": "os2",
+      "type": "knowledge",
+      "title": "内存分页机制",
+      "content": "将物理内存分成固定大小的页框 (Frame)\n将逻辑地址空间分成同样大小的页 (Page)\n\n优点：\n• 消除外部碎片\n• 支持虚拟内存与内存共享\n• 实现内存保护\n\n逻辑地址 = 页号(p) + 页内偏移(d)\n物理地址 = 页表[p] × 页大小 + d",
+      "tags": ["记忆卡片", "内存管理"],
+      "chapter": "内存管理",
+      "difficulty": 4
+    },
+    {
+      "id": "os3",
+      "type": "cloze",
+      "title": "死锁的四个必要条件",
+      "paragraphs": [
+        {
+          "id": "p1",
+          "segments": [
+            { "type": "text", "text": "死锁产生的四个必要条件：" }
+          ]
+        },
+        {
+          "id": "p2",
+          "segments": [
+            { "type": "text", "text": "1. " },
+            { "type": "blank", "id": "b1", "answer": "不可剥夺" },
+            { "type": "text", "text": "条件：资源不能被强制剥夺" }
+          ]
+        },
+        {
+          "id": "p3",
+          "segments": [
+            { "type": "text", "text": "2. " },
+            { "type": "blank", "id": "b2", "answer": "占有并等待" },
+            { "type": "text", "text": "条件：进程持有资源同时等待新资源" }
+          ]
+        },
+        {
+          "id": "p4",
+          "segments": [
+            { "type": "text", "text": "3. " },
+            { "type": "blank", "id": "b3", "answer": "互斥" },
+            { "type": "text", "text": "条件：同一资源只能被一进程使用" }
+          ]
+        },
+        {
+          "id": "p5",
+          "segments": [
+            { "type": "text", "text": "4. " },
+            { "type": "blank", "id": "b4", "answer": "循环" },
+            { "type": "text", "text": "等待条件：进程间形成环形等待链" }
+          ]
+        }
+      ],
+      "analysis": "死锁四个必要条件：互斥、占有并等待、不可剥夺、循环等待；破坏任一条件即可预防死锁。",
+      "tags": ["填空题", "进程管理", "死锁"],
+      "chapter": "死锁",
+      "difficulty": 3
+    },
+    {
+      "id": "os4",
+      "type": "knowledge",
+      "title": "CPU 调度算法",
+      "content": "• FCFS（先来先服务）：实现简单，平均等待时间长\n• SJF（最短作业优先）：最优平均等待时间，可能产生饥饿\n• Round Robin（时间片轮转）：公平，适合交互式系统\n• 优先级调度：高优先级优先，低优先级可能饥饿\n• MLFQ（多级反馈队列）：综合以上，现代 OS 常用",
+      "tags": ["记忆卡片", "进程管理", "调度"],
+      "chapter": "调度",
+      "difficulty": 3
+    }
+  ]
+}
