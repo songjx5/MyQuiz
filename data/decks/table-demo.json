@@ -1,0 +1,69 @@
+{
+  "id": "d5",
+  "name": "表格示例",
+  "category": "card",
+  "description": "演示所有题型可选的结构化表格，以及正文中的 Markdown 管道表格",
+  "color": "#7048E8",
+  "tags": ["表格示例", "HTTP"],
+  "order": 6,
+  "items": [
+    {
+      "id": "t1",
+      "type": "knowledge",
+      "title": "HTTP 与 HTTPS 对比",
+      "content": "HTTPS 是 HTTP 加上 TLS 加密。下表对比两者的默认端口、加密方式与典型场景。",
+      "table": {
+        "caption": "表 1：HTTP 与 HTTPS 对比",
+        "columns": ["项目", "HTTP", "HTTPS"],
+        "rows": [
+          ["默认端口", "80", "443"],
+          ["传输加密", "无", "TLS/SSL 加密"],
+          ["证书", "不需要", "需要 CA 证书"],
+          ["典型场景", "普通网页", "登录、支付、个人信息"],
+          ["URL 前缀", "http://", "https://"]
+        ],
+        "align": ["left", "center", "center"],
+        "footnote": "端口号与加密方式是常见考点。"
+      },
+      "analysis": "HTTP 默认 80 端口且明文传输；HTTPS 默认 443 端口，通过 TLS 提供加密、完整性校验与身份认证。",
+      "tags": ["记忆卡片", "HTTP", "HTTPS", "对比"],
+      "chapter": "HTTP",
+      "difficulty": 2
+    },
+    {
+      "id": "t2",
+      "type": "single",
+      "stem": "根据下表，HTTPS 的默认端口是哪一个？",
+      "table": {
+        "columns": ["协议", "默认端口", "是否加密"],
+        "rows": [
+          ["HTTP", "80", "否"],
+          ["HTTPS", "443", "是"],
+          ["SSH", "22", "是"]
+        ],
+        "align": ["left", "center", "center"]
+      },
+      "options": [
+        { "key": "A", "text": "22" },
+        { "key": "B", "text": "80" },
+        { "key": "C", "text": "443" },
+        { "key": "D", "text": "3306" }
+      ],
+      "answer": ["C"],
+      "analysis": "HTTPS 默认端口是 443；80 是 HTTP 的默认端口，22 是 SSH，3306 是 MySQL。",
+      "tags": ["单选题", "HTTP", "端口"],
+      "chapter": "HTTP",
+      "difficulty": 1
+    },
+    {
+      "id": "t3",
+      "type": "knowledge",
+      "title": "常见 HTTP 状态码",
+      "content": "下表列出常见状态码及其含义：\n\n| 状态码 | 含义 | 常见场景 |\n| --- | --- | --- |\n| 200 | 成功 | 请求正常完成 |\n| 301 | 永久重定向 | 域名更换、HTTPS 跳转 |\n| 304 | 未修改 | 协商缓存命中 |\n| 404 | 未找到 | 资源不存在 |\n| 500 | 服务器内部错误 | 服务端异常 |\n\n记忆时按 2xx 成功、3xx 重定向、4xx 客户端错误、5xx 服务端错误分组。",
+      "analysis": "正文中的 Markdown 管道表格由前端渲染为表格，不需要额外的结构化字段。",
+      "tags": ["记忆卡片", "HTTP", "状态码"],
+      "chapter": "HTTP",
+      "difficulty": 1
+    }
+  ]
+}

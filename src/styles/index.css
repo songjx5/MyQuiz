@@ -1,3 +1,43 @@
 @import './fonts.css';
 @import './tailwind.css';
 @import './theme.css';
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  overscroll-behavior-y: none;
+}
+
+/*
+ * 移动端视口：优先 100dvh，旧的 Android WebView / 浏览器回退到 100vh。
+ * 这样 Chrome for Android 地址栏收起、键盘弹出时不会留下 100vh 的空白。
+ */
+.app-viewport {
+  height: 100vh;
+  height: 100dvh;
+}
+
+button,
+[role='button'],
+a {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 767px) {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+}
+
+/* 移动布局（含平板和手动切换）统一使用 16px 输入字号，避免聚焦时自动放大。 */
+.mobile-app input,
+.mobile-app textarea,
+.mobile-app select {
+  font-size: 16px;
+}

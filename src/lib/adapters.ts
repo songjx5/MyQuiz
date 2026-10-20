@@ -35,6 +35,7 @@ function baseItem(item: ItemData, deckId: string) {
     image: item.image,
     analysis: item.analysis,
     source: item.source,
+    table: item.table,
   };
 }
 

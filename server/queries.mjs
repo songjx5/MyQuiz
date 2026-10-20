@@ -28,6 +28,8 @@ function rowToItem(row, tags) {
   Object.assign(item, payload);
   if (row.title !== null) item.title = row.title;
   if (row.content !== null) item.content = row.content;
+  const table = parseJson(row.table_json, null);
+  if (table) item.table = table;
   item.tags = tags;
   if (row.difficulty !== null) item.difficulty = row.difficulty;
   if (row.importance !== null) item.importance = row.importance;

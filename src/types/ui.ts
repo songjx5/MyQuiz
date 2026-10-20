@@ -3,6 +3,7 @@ import type {
   Familiarity,
   ItemData,
   SourceData,
+  TableData,
 } from './deck';
 
 export type UiKind = 'display' | 'single' | 'multi' | 'truefalse' | 'fill-q' | 'cloze';
@@ -51,6 +52,8 @@ export interface UiBaseItem {
   analysis?: string;
   explanation?: string;
   source?: SourceData;
+  /** 所有题型可选的结构化表格内容。 */
+  table?: TableData;
 }
 
 export interface UiDisplayItem extends UiBaseItem {

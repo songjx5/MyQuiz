@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { DB_PATH } from './config.mjs';
 
 const SCHEMA_PATH = fileURLToPath(new URL('./schema.sql', import.meta.url));
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 let singleton = null;
 
@@ -26,11 +26,38 @@ export function openDatabase(dbPath = DB_PATH) {
 export function initSchema(db) {
   const schema = fs.readFileSync(SCHEMA_PATH, 'utf8');
   db.exec(schema);
+  migrateItemsTableColumns(db);
   db.prepare(
     `INSERT INTO meta(key, value) VALUES ('schema_version', ?)
      ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
   ).run(String(SCHEMA_VERSION));
   return db;
+}
+
+/**
+ * v1 的 items 表没有 table_json 列。CREATE TABLE IF NOT EXISTS 不会更新已有表，
+ * 因此升级到 v2 时补一列；SQLite 的 ADD COLUMN 不会重写或丢失已有数据。
+ */
+function migrateItemsTableColumns(db) {
+  const tableRow = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'items'")
+    .get();
+  if (!tableRow?.sql) return;
+
+  const columns = new Set(
+    db
+      .prepare('PRAGMA table_info(items)')
+      .all()
+      .map((column) => column.name),
+  );
+  if (!columns.has('table_json')) {
+    try {
+      db.exec('ALTER TABLE items ADD COLUMN table_json TEXT');
+    } catch (error) {
+      // 并发启动时另一个进程可能已经加过这一列。
+      if (!/duplicate column name/i.test(String(error?.message ?? ''))) throw error;
+    }
+  }
 }
 
 /** 进程级单例，供 API 服务使用。 */

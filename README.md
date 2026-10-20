@@ -4,13 +4,15 @@
 
 ## 功能
 
-- 知识卡片：正面 / 背面翻阅，适合概念记忆。
+- 知识卡片：标题与正文直接展示，无需翻面，适合概念记忆。
 - 题库：单选、多选、判断、填空、完型填空五种题型。
 - 乱序练习：每次进入卡组都会重新打乱卡片顺序；右下角列表展示本次顺序，可随时重新洗牌。
 - 完型填空：除「提交答案」外，也可点「显示背面」直接查看空位答案与解析（仅查看，不计入作答）。
 - 长期统计：累计作答、答对 / 答错、正确率、已作答卡片数、熟悉度分布。
 - 熟悉度：每张卡片可标记「熟悉 / 一般 / 不熟悉」，再次点击可取消。
 - 标签：按卡组标签筛选；也可以给单张卡片添加自己的普通标签（覆盖原始普通标签，可恢复）。
+- 表格：任意题型都可选带一个 `table` 字段；题目在题干下方、知识卡在正文下方渲染为真正的表格，窄屏可横向滚动。正文中的 Markdown 管道表格也会自动渲染。
+- 移动端布局：按视口、触控点数、pointer/hover 等设备特征自动切换到单列布局；顶部「自动 / 桌面 / 移动」按钮可手动切换并记住选择。Android 手机、iPhone、Android / iPad 平板均适用。
 - 顶级标签：每张卡片自动带有且仅带有一个顶级标签（`单选题` / `多选题` / `填空题` / `记忆卡片`），由题型决定，前端只读、不能修改或删除。
 - 跨设备同步：同步码即身份，答题记录、熟悉度、标签全部保存在服务端。
 - 题库更新：JSON 文件可增删改，命令行校验后导入；导入是幂等的。
@@ -38,12 +40,18 @@ server/
   config.mjs       环境变量与路径
 src/
   app/App.tsx              主界面（API 驱动）
+  app/components/DataTable.tsx   结构化表格渲染
+  app/components/RichText.tsx    正文换行 + Markdown 管道表格渲染
+  app/components/LayoutToggle.tsx 自动 / 桌面 / 移动布局切换
   app/components/SyncDialog.tsx
   lib/api.ts               fetch 客户端与 key 存储
   lib/adapters.ts          API 数据 → UI 数据
+  lib/deviceLayout.ts      视口 / 触控 / UA 设备特征检测
+  lib/useLayoutMode.ts     布局模式 Hook（自动 + 手动覆盖）
+  lib/richText.ts          Markdown 表格解析
   types/deck.ts            题库 / API 类型
   types/ui.ts              UI 类型与本地判分辅助
-data/decks/*.json          题库源文件
+data/decks/*.json          题库源文件（table-demo.json 为表格示例）
 data/app.db                SQLite 数据库（运行时生成，已被 .gitignore 忽略）
 scripts/dev.mjs            同时启动 API 与 Vite
 tests/                     后端测试
@@ -73,6 +81,44 @@ npm run dev:web     # 只启动 Vite；/api 会代理到 127.0.0.1:8787
 npm run build
 npm start           # API 同时托管 dist，打开 http://127.0.0.1:8787
 ```
+
+## 移动端与布局切换
+
+当前前端支持桌面三栏布局和移动单列布局，并在两者之间自动切换。
+
+### 自动判断
+
+`useLayoutMode` / `deviceLayout` 会监听 `resize`、`orientationchange` 和 `matchMedia`，无需刷新页面：
+
+| 条件 | 布局 |
+| --- | --- |
+| 视口宽度 `< 768px` | 移动单列（Android / iPhone 竖屏、小窗桌面） |
+| 触屏 / 粗指针，且视口宽度 `< 1024px` | 移动单列（平板竖屏、横屏手机、折叠屏） |
+| 其他情况 | 桌面三栏（宽屏平板、桌面浏览器） |
+
+判断依据是设备 / 连接特征，而不是写死的机型：视口尺寸、`navigator.maxTouchPoints`、`(pointer: coarse)`、`(hover: none)`，UA 仅作为兜底。因此 Android、iPhone、iPadOS、HarmonyOS 等都能正常工作。
+
+### 手动切换
+
+桌面左栏和移动端顶栏都有「自动 / 桌面 / 移动」按钮，按 **自动 → 桌面 → 移动 → 自动** 循环。选择保存在 `localStorage` 的 `memoquiz.layout` 中，刷新后继续生效；清空该键或选择“自动”即可恢复自动判断。
+
+在窄屏上手动选“桌面”时会保留三栏布局，外层提供横向滚动，不会把右侧面板裁掉。
+
+### 移动端结构
+
+- 底部三个页签：**卡组**、**卡片**、**统计**。
+- 卡片页的「上一张 / 熟悉度 / 下一张」是固定操作条，不随长卡片滚走。
+- 卡组页底部保留“跨设备同步”入口；标签筛选后可直接点“查看卡片”。
+- 表格在卡片内部横向滚动，不会撑破页面。
+
+### Android 适配
+
+- `viewport-fit=cover` + `interactive-widget=resizes-content`，配合 `100dvh`（旧浏览器回退 `100vh`），适配地址栏收起和软键盘。
+- 顶部 / 底部使用 `env(safe-area-inset-*)`，适配刘海、挖孔屏和手势导航条。
+- 移动端输入框最小 16px，避免聚焦时页面被自动放大。
+- 使用 `touch-action: manipulation` 减少双击缩放和点击延迟，不依赖 iOS 专有属性。
+
+已用 320、360、390、412、768、800、915×412、1280、1440 等视口验证自动布局、页签切换、表格横向滚动和手动布局持久化。
 
 ## 环境变量
 
@@ -104,7 +150,7 @@ npm start           # API 同时托管 dist，打开 http://127.0.0.1:8787
 | 表 | 作用 |
 | --- | --- |
 | `decks` | 卡组元数据 |
-| `items` | 卡片内容；主键 `(deck_id, id)`，不同卡组可以使用相同卡片 id |
+| `items` | 卡片内容；主键 `(deck_id, id)`，不同卡组可以使用相同卡片 id；`table_json` 保存可选的结构化表格 |
 | `item_tags` | 卡片原始标签（含由题型派生的顶级标签） |
 | `users` | 用户；只保存同步码哈希与前缀 |
 | `progress` | 每用户 / 每卡片的熟悉度、最近一次作答、累计次数 |
@@ -114,6 +160,8 @@ npm start           # API 同时托管 dist，打开 http://127.0.0.1:8787
 | `meta` | schema 版本等元信息 |
 
 - 导入题库时，`decks` / `items` 按 id UPSERT；`--prune` 会删除 JSON 中已不存在的卡片，并级联删除相关进度和答题记录。
+- `items.table_json` 保存任意题型可选的结构化表格；正文中的 Markdown 管道表格仍原样保存在 `content` / `stem` / `analysis` 等 TEXT 列中，由前端渲染。
+- schema 版本为 2；打开旧数据库时会自动为 `items` 补充 `table_json` 列，不重建表、不影响已有进度。
 - 用户进度是唯一不可从 JSON 重建的数据，请定期备份。
 - SQLite 使用 WAL；备份使用 `VACUUM INTO` 生成一致性快照。
 
@@ -131,6 +179,8 @@ npm start           # API 同时托管 dist，打开 http://127.0.0.1:8787
 | `cloze` | 完型填空 | `paragraphs[].segments[]`；空位 `answer` 可配 `alternatives`、`caseSensitive` |
 
 前端展示映射：`knowledge → 知识卡片`、`judge → 判断题`、`fill → 填空题`，其余同名。
+
+表格不是独立题型：所有卡片都可以带可选的 `table` 对象（`columns`、`rows`、`caption`、`align`、`header`、`footnote`）。题目在题干下方、知识卡片在正文下方显示；正文中的 GFM 管道表格也会渲染。完整字段与示例见 [卡片json设计.md](./卡片json设计.md#10-可选表格-table所有题型通用)，可导入的示例见 `data/decks/table-demo.json`。
 
 ### 顶级标签
 
@@ -300,7 +350,7 @@ npm test
 npm run build
 ```
 
-测试覆盖：题库校验、五种题型判分、事务导入与幂等、复合主键隔离、进度覆盖、标签覆盖与恢复、顶级标签只读、统计、API 鉴权、管理接口、静态站点回退等。当前共 31 个后端测试。
+测试覆盖：题库校验、五种题型判分、事务导入与幂等、复合主键隔离、进度覆盖、标签覆盖与恢复、顶级标签只读、表格校验与存取、schema 迁移、统计、API 鉴权、管理接口、静态站点回退等。当前共 37 个后端测试。
 
 ## 安全与部署建议
 

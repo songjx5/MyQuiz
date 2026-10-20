@@ -35,6 +35,10 @@ const testDeck = {
       answer: ['B'],
       analysis: '答案是 4。',
       tags: ['数学'],
+      table: {
+        columns: ['算式', '结果'],
+        rows: [['2 + 2', '4']],
+      },
     },
     {
       id: 'm1',
@@ -167,6 +171,10 @@ test('获取卡组与完整题目结构', async () => {
   assert.ok(deck);
   assert.equal(deck.items.length, 5);
   assert.equal(deck.items.find((item) => item.id === 'm1').answer.join(','), 'A,C');
+  assert.deepEqual(deck.items.find((item) => item.id === 's1').table, {
+    columns: ['算式', '结果'],
+    rows: [['2 + 2', '4']],
+  });
   assert.equal(deck.items.find((item) => item.id === 'c1').paragraphs[0].segments.length, 4);
   assert.deepEqual(deck.progress, {});
 });

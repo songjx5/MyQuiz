@@ -264,3 +264,156 @@ test('每个支持的题型都有顶级标签映射', () => {
     assert.ok(TOP_TAG_BY_TYPE[type], `题型 ${type} 缺少顶级标签映射`);
   }
 });
+
+test('表格可作为任意题型的可选内容，并保留结构与对齐', () => {
+  const report = validateDeck(
+    deckWith([
+      {
+        id: 's1',
+        type: 'single',
+        stem: '根据下表选择正确答案',
+        options: [
+          { key: 'A', text: '1' },
+          { key: 'B', text: '2' },
+        ],
+        answer: ['A'],
+        table: {
+          caption: '对比表',
+          columns: ['项目', '数值'],
+          rows: [
+            ['甲', 1],
+            ['乙', '2'],
+          ],
+          align: ['left', 'right'],
+          footnote: '数据来源：测试',
+        },
+      },
+      {
+        id: 'k1',
+        type: 'knowledge',
+        title: '表格知识卡',
+        content: '背面正文',
+        table: {
+          columns: ['概念', '说明'],
+          rows: [['A', '第一条']],
+        },
+      },
+    ]),
+  );
+  assert.equal(report.ok, true, JSON.stringify(report.errors));
+  const single = report.deck.items[0];
+  assert.deepEqual(single.tags, ['单选题']);
+  assert.deepEqual(single.table, {
+    caption: '对比表',
+    columns: ['项目', '数值'],
+    rows: [
+      ['甲', '1'],
+      ['乙', '2'],
+    ],
+    align: ['left', 'right'],
+    footnote: '数据来源：测试',
+  });
+  assert.deepEqual(report.deck.items[1].table.rows, [['A', '第一条']]);
+});
+
+test('六种题型都可以带可选表格', () => {
+  const table = {
+    columns: ['列 A', '列 B'],
+    rows: [['1', '2']],
+  };
+  const report = validateDeck(
+    deckWith([
+      {
+        id: 's1',
+        type: 'single',
+        stem: '单选',
+        options: [
+          { key: 'A', text: '1' },
+          { key: 'B', text: '2' },
+        ],
+        answer: ['A'],
+        table,
+      },
+      {
+        id: 'm1',
+        type: 'multi',
+        stem: '多选',
+        options: [
+          { key: 'A', text: '1' },
+          { key: 'B', text: '2' },
+        ],
+        answer: ['A', 'B'],
+        table,
+      },
+      { id: 'j1', type: 'judge', stem: '判断', answer: true, table },
+      { id: 'f1', type: 'fill', stem: '___', blanks: ['答案'], table },
+      { id: 'k1', type: 'knowledge', title: '知识', content: '内容', table },
+      {
+        id: 'c1',
+        type: 'cloze',
+        paragraphs: [{ id: 'p1', segments: [{ type: 'blank', id: 'b1', answer: '答案' }] }],
+        table,
+      },
+    ]),
+  );
+  assert.equal(report.ok, true, JSON.stringify(report.errors));
+  assert.equal(report.deck.items.length, 6);
+  for (const item of report.deck.items) {
+    assert.deepEqual(item.table, table, `题型 ${item.type} 的表格未保留`);
+  }
+});
+
+test('表格每行单元格数量必须与表头一致', () => {
+  const report = validateDeck(
+    deckWith([
+      {
+        id: 'j1',
+        type: 'judge',
+        stem: '判断题',
+        answer: true,
+        table: {
+          columns: ['A', 'B'],
+          rows: [['只有一列']],
+        },
+      },
+    ]),
+  );
+  assert.equal(report.ok, false);
+  assert.ok(report.errors.some((error) => error.message.includes('单元格')));
+});
+
+test('表格对齐方式数量必须与列数一致', () => {
+  const report = validateDeck(
+    deckWith([
+      {
+        id: 'k1',
+        type: 'knowledge',
+        title: '表格',
+        content: '内容',
+        table: {
+          columns: ['A', 'B'],
+          rows: [['1', '2']],
+          align: ['center'],
+        },
+      },
+    ]),
+  );
+  assert.equal(report.ok, false);
+  assert.ok(report.errors.some((error) => error.message.includes('对齐方式')));
+});
+
+test('表格必须有非空表头和数据行', () => {
+  const report = validateDeck(
+    deckWith([
+      {
+        id: 'k1',
+        type: 'knowledge',
+        title: '空表格',
+        content: '内容',
+        table: { columns: [], rows: [] },
+      },
+    ]),
+  );
+  assert.equal(report.ok, false);
+  assert.ok(report.errors.some((error) => error.path.endsWith('.table.columns')));
+});

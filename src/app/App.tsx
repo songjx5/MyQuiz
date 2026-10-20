@@ -26,7 +26,11 @@ import {
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { Toaster, toast } from "sonner";
 import { SyncDialog } from "./components/SyncDialog";
+import { DataTable } from "./components/DataTable";
+import { RichText } from "./components/RichText";
+import { LayoutToggle } from "./components/LayoutToggle";
 import { buildUiState, formatItemTitle } from "../lib/adapters";
+import { useLayoutMode } from "../lib/useLayoutMode";
 import {
   ApiError,
   clearStoredUserKey,
@@ -82,6 +86,7 @@ const FAM_CONFIG = {
 const FAM_COLORS = { familiar: "#10B981", normal: "#F59E0B", unfamiliar: "#EF4444" };
 
 type BootState = "loading" | "ready" | "error";
+type MobileTab = "decks" | "card" | "stats";
 
 // ─────────────────────────────────────────────────────────
 // Helpers
@@ -276,11 +281,13 @@ function DeckTagList({
   selectedTags,
   onToggleTag,
   onClearTags,
+  onGoToCard,
 }: {
   deck: UiDeck;
   selectedTags: Set<string>;
   onToggleTag: (tag: string) => void;
   onClearTags: () => void;
+  onGoToCard?: () => void;
 }) {
   const tagCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -380,6 +387,17 @@ function DeckTagList({
           );
         })}
       </div>
+
+      {onGoToCard && (
+        <button
+          type="button"
+          onClick={onGoToCard}
+          className="mt-2 flex min-h-[40px] w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 active:bg-primary/80"
+        >
+          查看卡片
+          <ChevronRight className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
   );
 }
@@ -398,7 +416,7 @@ function StatRow({ label, value, unit, color }: { label: string; value: number; 
 
 function LoadingScreen({ label }: { label: string }) {
   return (
-    <div className="flex h-screen items-center justify-center bg-background">
+    <div className="flex app-viewport items-center justify-center bg-background">
       <div className="text-center">
         <Loader2 className="mx-auto mb-3 h-7 w-7 animate-spin text-primary" />
         <p className="text-sm font-medium text-foreground">{label}</p>
@@ -424,6 +442,10 @@ export default function App() {
   const [familiarityMap, setFamiliarityMap] = useState<Record<string, Familiarity>>({});
   const [submitMap, setSubmitMap] = useState<Record<string, SubmitRecord>>({});
 
+  // 布局：auto 按视口 / 触控 / UA 特征隐式切换，也可用按钮手动覆盖。
+  const { isMobile, override: layoutOverride, cycleLayout, profile: deviceProfile } = useLayoutMode();
+  const [mobileTab, setMobileTab] = useState<MobileTab>("card");
+
   // Transient answer state
   const [singleSel, setSingleSel] = useState<number | null>(null);
   const [multiSel, setMultiSel] = useState<Set<number>>(new Set());
@@ -431,7 +453,6 @@ export default function App() {
   const [fillSel, setFillSel] = useState<string[]>([]);
   const [clozeSel, setClozeSel] = useState<Record<string, string>>({});
   const [clozeRevealed, setClozeRevealed] = useState(false);
-  const [flipped, setFlipped] = useState(false);
 
   const [userKey, setUserKey] = useState("");
   const [userLabel, setUserLabel] = useState<string | null>(null);
@@ -488,7 +509,6 @@ export default function App() {
   }, [userKey]);
 
   function restoreStateEmpty() {
-    setFlipped(false);
     setClozeRevealed(false);
     setTagEditMode(false);
     setNewTagInput("");
@@ -500,7 +520,6 @@ export default function App() {
   }
 
   function restoreState(nextItem: UiItem, record?: SubmitRecord) {
-    setFlipped(false);
     setClozeRevealed(false);
     setTagEditMode(false);
     setNewTagInput("");
@@ -594,6 +613,11 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 从桌面布局切到移动布局时，默认落在当前卡片上。
+  useEffect(() => {
+    if (isMobile) setMobileTab("card");
+  }, [isMobile]);
+
   useEffect(() => {
     if (filteredItems.length > 0 && currentIndex >= filteredItems.length) {
       setCurrentIndex(0);
@@ -628,6 +652,12 @@ export default function App() {
     const firstItem = orderItems(nextDeck.items, nextOrder)[0];
     if (firstItem) restoreState(firstItem, discardAnswers ? undefined : submitMap[firstItem.id]);
     else restoreStateEmpty();
+  };
+
+  /** 移动端从卡组列表选中卡组后直接进入卡片页。 */
+  const selectDeckAndOpen = (id: string) => {
+    if (selectedDeckId !== id) selectDeck(id);
+    setMobileTab("card");
   };
 
   const toggleTag = (tag: string) => {
@@ -759,6 +789,11 @@ export default function App() {
     if (index === currentIndex) return;
     setCurrentIndex(index);
     restoreState(filteredItems[index], submitMap[filteredItems[index].id]);
+  };
+
+  const jumpToAndGoCard = (index: number) => {
+    jumpTo(index);
+    setMobileTab("card");
   };
 
   const handleRetry = () => {
@@ -1043,6 +1078,7 @@ export default function App() {
             ))}
           </div>
         )}
+        {clozeItem.table && <DataTable table={clozeItem.table} />}
         {revealed && (
           <div className="mb-3 flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs font-medium text-primary">
             <Eye className="h-3.5 w-3.5 shrink-0" />
@@ -1117,7 +1153,7 @@ export default function App() {
 
   if (bootState === "error") {
     return (
-      <div className="flex h-screen items-center justify-center bg-background px-6">
+      <div className="flex app-viewport items-center justify-center bg-background px-6">
         <div className="w-full max-w-md rounded-2xl border border-border bg-card p-7 text-center shadow-sm">
           <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-red-500">
             <WifiOff className="h-5 w-5" />
@@ -1145,7 +1181,7 @@ export default function App() {
 
   if (!deck) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background px-6">
+      <div className="flex app-viewport items-center justify-center bg-background px-6">
         <div className="text-center">
           <Brain className="mx-auto mb-3 h-9 w-9 text-muted-foreground/30" />
           <p className="text-sm font-medium text-foreground">数据库里还没有卡组</p>
@@ -1166,7 +1202,7 @@ export default function App() {
   if (!item) {
     return (
       <>
-        <div className="flex h-screen flex-col items-center justify-center gap-3 bg-background text-sm text-muted-foreground">
+        <div className="flex app-viewport flex-col items-center justify-center gap-3 bg-background text-sm text-muted-foreground">
           <p>当前筛选无匹配卡片</p>
           <button onClick={clearTags} className="rounded-lg border border-border px-4 py-2 text-xs hover:bg-muted">
             清除筛选
@@ -1178,6 +1214,691 @@ export default function App() {
     );
   }
 
+  // ── Shared content for desktop / mobile ────────────────
+
+  const syncEntry = () => (
+    <button
+      type="button"
+      onClick={() => setSyncOpen(true)}
+      className="flex min-h-[44px] w-full items-center justify-between rounded-xl border border-border px-3 py-2.5 text-left transition-colors hover:bg-muted active:bg-muted"
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <KeyRound className="h-3.5 w-3.5" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-foreground">跨设备同步</p>
+          <p className="truncate font-mono text-[10px] text-muted-foreground">
+            {userKey ? `${userKey.slice(0, 9)}…` : "未登录"}
+            {userLabel ? ` · ${userLabel}` : ""}
+          </p>
+        </div>
+      </div>
+      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+    </button>
+  );
+
+  const deckListContent = (mobile: boolean) => (
+    <>
+      <div className="mb-1 px-2">
+        <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <BookOpen className="h-3.5 w-3.5" />知识卡片
+        </div>
+        {decks
+          .filter((candidate) => candidate.category === "card")
+          .map((candidate) => (
+            <div key={candidate.id}>
+              <DeckListItem
+                deck={candidate}
+                isActive={selectedDeckId === candidate.id}
+                onClick={() => (mobile ? selectDeckAndOpen(candidate.id) : selectDeck(candidate.id))}
+                familiarityMap={familiarityMap}
+              />
+              {selectedDeckId === candidate.id && (
+                <DeckTagList
+                  deck={candidate}
+                  selectedTags={selectedTags}
+                  onToggleTag={toggleTag}
+                  onClearTags={clearTags}
+                  onGoToCard={mobile ? () => setMobileTab("card") : undefined}
+                />
+              )}
+            </div>
+          ))}
+      </div>
+
+      <div className="mx-2 my-3 border-t border-border" />
+
+      <div className="px-2">
+        <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <ListChecks className="h-3.5 w-3.5" />题库
+        </div>
+        {decks
+          .filter((candidate) => candidate.category === "question")
+          .map((candidate) => (
+            <div key={candidate.id}>
+              <DeckListItem
+                deck={candidate}
+                isActive={selectedDeckId === candidate.id}
+                onClick={() => (mobile ? selectDeckAndOpen(candidate.id) : selectDeck(candidate.id))}
+                familiarityMap={familiarityMap}
+              />
+              {selectedDeckId === candidate.id && (
+                <DeckTagList
+                  deck={candidate}
+                  selectedTags={selectedTags}
+                  onToggleTag={toggleTag}
+                  onClearTags={clearTags}
+                  onGoToCard={mobile ? () => setMobileTab("card") : undefined}
+                />
+              )}
+            </div>
+          ))}
+      </div>
+
+      {mobile && (
+        <div className="mt-4 border-t border-border px-2 pt-3">
+          {syncEntry()}
+        </div>
+      )}
+    </>
+  );
+
+  const cardContent = (
+    <div className="mx-auto w-full max-w-[640px]">
+      {/* Item tags — view / edit */}
+      <div className="mb-3 flex min-h-[24px] flex-wrap items-start gap-1.5">
+        {itemTags.map((tag) => {
+          const top = isTopTag(tag);
+          if (tagEditMode) {
+            return (
+              <span
+                key={tag}
+                title={top ? topTagTitle : undefined}
+                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${
+                  top
+                    ? "border-primary/30 bg-primary/10 font-semibold text-primary"
+                    : "border-primary/20 bg-primary/10 font-medium text-primary"
+                }`}
+              >
+                {top ? <Lock className="h-2.5 w-2.5" /> : "#"}
+                {tag}
+                {!top && (
+                  <button
+                    onClick={() => void removeTag(tag)}
+                    className="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-red-100 hover:text-red-600"
+                    title="移除标签"
+                  >
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                )}
+              </span>
+            );
+          }
+          return (
+            <button
+              key={tag}
+              onClick={() => toggleTag(tag)}
+              title={top ? topTagTitle : undefined}
+              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors ${
+                top
+                  ? selectedTags.has(tag)
+                    ? "border-primary bg-primary/15 font-semibold text-primary"
+                    : "border-primary/30 bg-primary/5 font-medium text-primary/80 hover:bg-primary/10"
+                  : selectedTags.has(tag)
+                    ? "border-primary/25 bg-primary/10 font-medium text-primary"
+                    : "border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-primary"
+              }`}
+            >
+              {top ? <Lock className="h-2.5 w-2.5" /> : "#"}
+              {tag}
+            </button>
+          );
+        })}
+
+        {tagEditMode && (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void addTag(newTagInput);
+            }}
+            className="inline-flex items-center gap-1"
+          >
+            <input
+              type="text"
+              value={newTagInput}
+              onChange={(event) => setNewTagInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setTagEditMode(false);
+                  setNewTagInput("");
+                }
+              }}
+              placeholder="添加标签…"
+              autoFocus
+              className="w-24 rounded-full border border-dashed border-primary/50 bg-transparent px-2 py-0.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none"
+            />
+            {newTagInput.trim() && (
+              <button
+                type="submit"
+                className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-white transition-colors hover:bg-primary/80"
+              >
+                <Check className="h-2.5 w-2.5" />
+              </button>
+            )}
+          </form>
+        )}
+
+        {tagEditMode && (
+          <button
+            onClick={() => void restoreTags()}
+            title="恢复卡组原始标签"
+            className="inline-flex items-center gap-1 rounded-full border border-dashed border-muted-foreground/30 px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:border-muted-foreground/60 hover:text-foreground"
+          >
+            <RotateCcw className="h-2.5 w-2.5" />
+            恢复默认
+          </button>
+        )}
+
+        <button
+          onClick={() => {
+            setTagEditMode((value) => !value);
+            setNewTagInput("");
+          }}
+          title={tagEditMode ? "完成编辑" : "编辑标签"}
+          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors ${
+            tagEditMode
+              ? "bg-primary text-white hover:bg-primary/80"
+              : "bg-muted text-muted-foreground hover:bg-muted-foreground/20 hover:text-foreground"
+          }`}
+        >
+          {tagEditMode ? <Check className="h-3 w-3" /> : <Pencil className="h-3 w-3" />}
+        </button>
+
+        {editableTags.length === 0 && !tagEditMode && (
+          <button
+            onClick={() => setTagEditMode(true)}
+            className="inline-flex items-center gap-1 rounded-full border border-dashed border-muted-foreground/25 px-2 py-0.5 text-xs text-muted-foreground/60 transition-colors hover:border-muted-foreground/50 hover:text-muted-foreground"
+          >
+            <Plus className="h-3 w-3" />添加标签
+          </button>
+        )}
+      </div>
+
+      {/* Card */}
+      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        {item.image && (
+          <div className="h-40 w-full overflow-hidden bg-muted sm:h-44">
+            <img src={item.image} alt="卡片图片" className="h-full w-full object-cover" />
+          </div>
+        )}
+        <div className="p-5 sm:p-7">
+          {item.kind === "display" && (
+            <>
+              <h2 className="mb-4 text-lg font-bold text-foreground">{item.front}</h2>
+              <RichText
+                text={item.back}
+                className="font-sans text-sm leading-relaxed text-foreground"
+              />
+              {item.table && <DataTable table={item.table} className="mt-4" />}
+            </>
+          )}
+
+          {(item.kind === "single" || item.kind === "multi") && (
+            <>
+              <RichText
+                text={item.content}
+                className="text-base font-medium leading-relaxed text-foreground"
+              />
+              {item.kind === "multi" && <p className="mt-1.5 text-xs text-muted-foreground">可多选</p>}
+              {item.table && <DataTable table={item.table} />}
+              {renderOptions()}
+            </>
+          )}
+
+          {item.kind === "truefalse" && (
+            <>
+              <RichText
+                text={item.content}
+                className="text-base font-medium leading-relaxed text-foreground"
+              />
+              {item.table && <DataTable table={item.table} />}
+              {renderTrueFalse()}
+            </>
+          )}
+
+          {item.kind === "fill-q" && (
+            <>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">填空题</p>
+              {item.table && <DataTable table={item.table} />}
+              {renderFillQ()}
+            </>
+          )}
+
+          {item.kind === "cloze" && renderCloze()}
+
+          {/* Meta */}
+          {(item.chapter || item.section || item.difficulty) && (
+            <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-3 text-xs text-muted-foreground">
+              {item.chapter && <span>章节：{item.chapter}</span>}
+              {item.section && <span>小节：{item.section}</span>}
+              {item.difficulty && <span>难度：{item.difficulty}/5</span>}
+            </div>
+          )}
+
+          {/* Submit / Result */}
+          {isQuestionItem && (
+            <div className="mt-6">
+              {!isSubmitted ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={() => void handleSubmit()}
+                    disabled={!canSubmit() || submitting || (item.kind === "cloze" && clozeRevealed)}
+                    className="inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 active:bg-primary/80 disabled:cursor-not-allowed disabled:opacity-35"
+                  >
+                    {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                    提交答案
+                  </button>
+                  {item.kind === "cloze" && (
+                    <>
+                      <RevealButton
+                        revealed={clozeRevealed}
+                        onToggle={() => setClozeRevealed((value) => !value)}
+                        showLabel="显示背面"
+                        hideLabel="收起答案"
+                      />
+                      {clozeRevealed && (
+                        <span className="text-xs text-muted-foreground">收起答案后可提交</span>
+                      )}
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-3">
+                  <div
+                    className={`flex items-center gap-2.5 rounded-xl border px-4 py-3 text-sm font-semibold ${
+                      submitRecord!.isCorrect
+                        ? "border-green-200 bg-green-50 text-green-800"
+                        : "border-red-200 bg-red-50 text-red-800"
+                    }`}
+                  >
+                    {submitRecord!.isCorrect ? (
+                      <>
+                        <CheckCircle2 className="h-5 w-5 shrink-0 text-green-500" />回答正确！
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="h-5 w-5 shrink-0 text-red-500" />回答错误
+                      </>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleRetry}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    重新作答
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Explanation */}
+          {revealExplanation && item.explanation && (
+            <div className="mt-4 rounded-xl border border-border bg-secondary/60 p-4">
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">解析</p>
+              <RichText text={item.explanation} className="text-sm leading-relaxed text-foreground" />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  /** 上一张 / 熟悉度 / 下一张。移动端作为固定操作条放在滚动区外。 */
+  const cardActions = (
+    <div className="mx-auto grid w-full max-w-[640px] grid-cols-2 gap-2 sm:flex sm:items-center sm:justify-between">
+      <button
+        onClick={() => navigate(-1)}
+        disabled={currentIndex === 0}
+        className="order-1 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm transition-colors hover:bg-muted active:bg-muted disabled:cursor-not-allowed disabled:opacity-30 sm:w-auto"
+      >
+        <ChevronLeft className="h-4 w-4" />上一个
+      </button>
+
+      <div className="order-3 col-span-2 flex items-center justify-center gap-1.5 sm:order-2 sm:col-span-1">
+        {(["familiar", "normal", "unfamiliar"] as Familiarity[]).map((value) => {
+          const config = FAM_CONFIG[value];
+          const isActive = familiarityMap[item.id] === value;
+          return (
+            <button
+              key={value}
+              onClick={() => void markFamiliarity(value)}
+              className={`min-h-[38px] flex-1 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all sm:flex-none ${
+                isActive ? config.active : `border bg-transparent ${config.inactive}`
+              }`}
+              title={isActive ? "再次点击取消标记" : undefined}
+            >
+              {config.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <button
+        onClick={() => navigate(1)}
+        disabled={currentIndex === filteredItems.length - 1}
+        className="order-2 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm transition-colors hover:bg-muted active:bg-muted disabled:cursor-not-allowed disabled:opacity-30 sm:order-3 sm:w-auto"
+      >
+        下一个<ChevronRight className="h-4 w-4" />
+      </button>
+    </div>
+  );
+
+  const statsContent = (
+    <>
+      <div className="shrink-0 border-b border-border px-5 py-4">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">题目答题</p>
+        <div className="space-y-2.5">
+          <StatRow label="已作答" value={attempts.itemsAttempted} unit="题" color="text-foreground" />
+          <StatRow label="累计作答" value={attempts.total} unit="次" color="text-foreground" />
+          <StatRow label="答对" value={attempts.correct} unit="次" color="text-emerald-600" />
+          <StatRow label="答错" value={attempts.incorrect} unit="次" color="text-red-500" />
+          <div className="pt-2">
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">正确率</span>
+              <span className="font-mono text-sm font-bold text-primary">{attempts.accuracy}%</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-500"
+                style={{ width: `${attempts.accuracy}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="shrink-0 border-b border-border px-5 py-4">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">熟悉度分布</p>
+        {famTotal > 0 ? (
+          <>
+            <ResponsiveContainer width="100%" height={130}>
+              <PieChart>
+                <Pie
+                  data={famData.filter((entry) => entry.value > 0)}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={35}
+                  outerRadius={54}
+                  paddingAngle={3}
+                  dataKey="value"
+                  strokeWidth={0}
+                >
+                  {famData
+                    .filter((entry) => entry.value > 0)
+                    .map((entry, index) => (
+                      <Cell key={index} fill={entry.color} />
+                    ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    fontSize: "12px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--border)",
+                    background: "white",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                  }}
+                  formatter={(value: number, name: string) => [`${value} 个`, name]}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="mt-1 space-y-1.5">
+              {famData.map((entry) => (
+                <div key={entry.name} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                    <span className="text-xs text-muted-foreground">{entry.name}</span>
+                  </div>
+                  <span className="font-mono text-xs font-semibold text-foreground">
+                    {entry.value}
+                    <span className="ml-1 text-muted-foreground">
+                      ({famTotal > 0 ? Math.round((entry.value / famTotal) * 100) : 0}%)
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="py-6 text-center">
+            <Brain className="mx-auto mb-2 h-8 w-8 text-muted-foreground/30" />
+            <p className="text-xs text-muted-foreground">在卡片下方标记熟悉度</p>
+            <p className="mt-0.5 text-xs text-muted-foreground/60">统计将在此显示</p>
+          </div>
+        )}
+      </div>
+
+      <div className="px-5 py-4">
+        <div className="mb-3 flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="truncate text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {deck.name} · 本次顺序
+            </p>
+            <p className="mt-1 flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
+              <Shuffle className="h-3 w-3 shrink-0" />
+              <span>乱序</span>
+              <span className="text-muted-foreground/50">·</span>
+              <span>
+                已完成 {completedInView}/{filteredItems.length}
+              </span>
+              {selectedTags.size > 0 && <span className="text-primary">· 已筛选</span>}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={reshuffle}
+            disabled={filteredItems.length < 2}
+            title="重新乱序，并回到第 1 张"
+            aria-label="重新乱序"
+            className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <Shuffle className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        <div className="space-y-1">
+          {filteredItems.map((candidate, index) => {
+            const isActive = index === currentIndex;
+            const familiarity = familiarityMap[candidate.id];
+            const submitted = submitMap[candidate.id];
+            return (
+              <button
+                key={candidate.id}
+                onClick={() => (isMobile ? jumpToAndGoCard(index) : jumpTo(index))}
+                title={`第 ${index + 1} / ${filteredItems.length} 张（本次乱序顺序）`}
+                className={`flex min-h-[40px] w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs transition-colors ${
+                  isActive
+                    ? "bg-primary/10 font-semibold text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <span className="w-4 shrink-0 text-center font-mono tabular-nums text-muted-foreground">{index + 1}</span>
+                <span className="flex-1 truncate text-left">{formatItemTitle(candidate)}</span>
+                {familiarity && (
+                  <div className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: FAM_COLORS[familiarity] }} />
+                )}
+                {submitted &&
+                  (submitted.isCorrect ? (
+                    <CheckCircle2 className="h-3 w-3 shrink-0 text-green-500" />
+                  ) : (
+                    <XCircle className="h-3 w-3 shrink-0 text-red-400" />
+                  ))}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+
+  // ─────────────────────────────────────────────────────────
+  // Mobile layout
+  // ─────────────────────────────────────────────────────────
+
+  if (isMobile) {
+    const mobileTabs = [
+      { id: "decks" as MobileTab, label: "卡组", Icon: BookOpen },
+      { id: "card" as MobileTab, label: "卡片", Icon: Brain },
+      { id: "stats" as MobileTab, label: "统计", Icon: BarChart2 },
+    ];
+
+    return (
+      <>
+        <style>{`
+          .scrollbar-hide { scrollbar-width: none; }
+          .scrollbar-hide::-webkit-scrollbar { display: none; }
+          .bg-primary\\/8 { background-color: color-mix(in srgb, var(--primary) 8%, transparent); }
+        `}</style>
+        <Toaster position="top-center" richColors />
+        <SyncDialog open={syncOpen} userKey={userKey} onClose={() => setSyncOpen(false)} onUseKey={handleUseKey} />
+
+        <div className="mobile-app app-viewport mx-auto flex w-full max-w-[640px] flex-col overflow-hidden bg-background shadow-xl md:border-x md:border-border">
+          <header
+            className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-card px-4 pb-2.5"
+            style={{ paddingTop: "calc(0.625rem + env(safe-area-inset-top))" }}
+          >
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
+                <Brain className="h-4 w-4 text-white" />
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-sm font-bold leading-none tracking-tight">MemoQuiz</h1>
+                <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                  {mobileTab === "decks"
+                    ? "选择卡组"
+                    : mobileTab === "stats"
+                      ? "学习进度"
+                      : `${deck.name} · ${currentIndex + 1}/${Math.max(1, filteredItems.length)}`}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-1.5">
+              {selectedTags.size > 0 && (
+                <button
+                  type="button"
+                  onClick={clearTags}
+                  title="清除标签筛选"
+                  className="flex min-h-[40px] items-center gap-1 rounded-full bg-primary/10 px-2.5 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
+                >
+                  <Tag className="h-3 w-3" />
+                  {selectedTags.size}
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+              <LayoutToggle
+                override={layoutOverride}
+                autoIsMobile={deviceProfile.isMobile}
+                onCycle={cycleLayout}
+                compact
+              />
+            </div>
+          </header>
+
+          <div className="h-[3px] shrink-0 bg-muted">
+            <div
+              className="h-full bg-primary transition-all duration-300 ease-out"
+              style={{ width: `${((currentIndex + 1) / Math.max(1, filteredItems.length)) * 100}%` }}
+            />
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <div
+              data-mobile-tab="decks"
+              className={`scrollbar-hide h-full overflow-y-auto px-3 pb-6 pt-3 ${
+                mobileTab === "decks" ? "block" : "hidden"
+              }`}
+            >
+              {deckListContent(true)}
+            </div>
+
+            <div
+              data-mobile-tab="card"
+              className={`scrollbar-hide h-full overflow-y-auto ${
+                mobileTab === "card" ? "block" : "hidden"
+              }`}
+            >
+              <div className="flex items-center gap-2 border-b border-border bg-card/60 px-4 py-2.5">
+                <div className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: deck.color }} />
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${kindMeta.bg} ${kindMeta.text}`}>
+                  {kindMeta.label}
+                </span>
+                {selectedTags.size > 0 && (
+                  <span className="text-[11px] text-primary">筛选中</span>
+                )}
+                <span className="ml-auto font-mono text-[11px] tabular-nums text-muted-foreground">
+                  {currentIndex + 1} / {filteredItems.length}
+                </span>
+              </div>
+              <div className="px-4 pb-8 pt-4">{cardContent}</div>
+            </div>
+
+            <div
+              data-mobile-tab="stats"
+              className={`scrollbar-hide h-full overflow-y-auto pb-8 ${
+                mobileTab === "stats" ? "block" : "hidden"
+              }`}
+            >
+              <div className="flex items-center gap-2 border-b border-border px-5 py-4">
+                <BarChart2 className="h-4 w-4 text-primary" />
+                <h2 className="text-sm font-bold">累计统计</h2>
+              </div>
+              {statsContent}
+            </div>
+          </div>
+
+          {mobileTab === "card" && (
+            <div className="shrink-0 border-t border-border bg-card px-4 py-2">
+              {cardActions}
+            </div>
+          )}
+
+          <nav
+            className="flex shrink-0 border-t border-border bg-card"
+            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+            aria-label="移动端导航"
+          >
+            {mobileTabs.map(({ id, label, Icon }) => {
+              const active = mobileTab === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setMobileTab(id)}
+                  aria-current={active ? "page" : undefined}
+                  className={`relative flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 py-2 transition-colors ${
+                    active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {active && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-primary" />}
+                  <Icon className={`h-5 w-5 transition-transform ${active ? "scale-110" : ""}`} />
+                  <span className={`text-[10px] leading-none ${active ? "font-semibold" : "font-medium"}`}>
+                    {label}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Desktop layout
+  // ─────────────────────────────────────────────────────────
+
   return (
     <>
       <style>{`
@@ -1187,595 +1908,102 @@ export default function App() {
       `}</style>
       <Toaster position="top-center" richColors />
       <SyncDialog open={syncOpen} userKey={userKey} onClose={() => setSyncOpen(false)} onUseKey={handleUseKey} />
-      <div className="flex h-screen overflow-hidden bg-background">
-        {/* ── Left Panel ──────────────────────────────────── */}
-        <aside className="flex w-[272px] shrink-0 flex-col border-r border-border bg-card">
-          <div className="shrink-0 border-b border-border px-5 py-4">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary">
-                <Brain className="h-4 w-4 text-white" />
-              </div>
-              <div>
-                <h1 className="text-sm font-bold leading-none tracking-tight">MemoQuiz</h1>
-                <p className="mt-0.5 text-xs text-muted-foreground">AI 记忆卡片 · 刷题系统</p>
-              </div>
-            </div>
-          </div>
 
-          <div className="scrollbar-hide flex-1 overflow-y-auto px-3 py-3">
-            <div className="mb-1 px-2">
-              <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                <BookOpen className="h-3.5 w-3.5" />知识卡片
-              </div>
-              {decks
-                .filter((candidate) => candidate.category === "card")
-                .map((candidate) => (
-                  <div key={candidate.id}>
-                    <DeckListItem
-                      deck={candidate}
-                      isActive={selectedDeckId === candidate.id}
-                      onClick={() => selectDeck(candidate.id)}
-                      familiarityMap={familiarityMap}
-                    />
-                    {selectedDeckId === candidate.id && (
-                      <DeckTagList
-                        deck={candidate}
-                        selectedTags={selectedTags}
-                        onToggleTag={toggleTag}
-                        onClearTags={clearTags}
-                      />
-                    )}
-                  </div>
-                ))}
-            </div>
-
-            <div className="mx-2 my-3 border-t border-border" />
-
-            <div className="px-2">
-              <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                <ListChecks className="h-3.5 w-3.5" />题库
-              </div>
-              {decks
-                .filter((candidate) => candidate.category === "question")
-                .map((candidate) => (
-                  <div key={candidate.id}>
-                    <DeckListItem
-                      deck={candidate}
-                      isActive={selectedDeckId === candidate.id}
-                      onClick={() => selectDeck(candidate.id)}
-                      familiarityMap={familiarityMap}
-                    />
-                    {selectedDeckId === candidate.id && (
-                      <DeckTagList
-                        deck={candidate}
-                        selectedTags={selectedTags}
-                        onToggleTag={toggleTag}
-                        onClearTags={clearTags}
-                      />
-                    )}
-                  </div>
-                ))}
-            </div>
-          </div>
-
-          <div className="shrink-0 border-t border-border px-3 py-3">
-            <button
-              onClick={() => setSyncOpen(true)}
-              className="flex w-full items-center justify-between rounded-xl border border-border px-3 py-2.5 text-left transition-colors hover:bg-muted"
-            >
-              <div className="flex min-w-0 items-center gap-2">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                  <KeyRound className="h-3.5 w-3.5" />
+      {/* 手动选择桌面布局时，窄屏设备可以横向滚动，避免三栏被裁切。 */}
+      <div className="app-viewport w-full overflow-x-auto overflow-y-hidden bg-background">
+        <div className="flex h-full min-w-[1024px] overflow-hidden">
+          {/* ── Left Panel ──────────────────────────────────── */}
+          <aside className="flex w-[272px] shrink-0 flex-col border-r border-border bg-card">
+            <div className="shrink-0 border-b border-border px-5 py-4">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary">
+                  <Brain className="h-4 w-4 text-white" />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-foreground">跨设备同步</p>
-                  <p className="truncate font-mono text-[10px] text-muted-foreground">
-                    {userKey ? `${userKey.slice(0, 9)}…` : "未登录"}
-                    {userLabel ? ` · ${userLabel}` : ""}
-                  </p>
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-sm font-bold leading-none tracking-tight">MemoQuiz</h1>
+                  <p className="mt-0.5 text-xs text-muted-foreground">AI 记忆卡片 · 刷题系统</p>
                 </div>
+                <LayoutToggle
+                  override={layoutOverride}
+                  autoIsMobile={deviceProfile.isMobile}
+                  onCycle={cycleLayout}
+                />
               </div>
-              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            </button>
-          </div>
-        </aside>
-
-        {/* ── Center Panel ────────────────────────────────── */}
-        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <div className="h-[3px] shrink-0 bg-muted">
-            <div
-              className="h-full bg-primary transition-all duration-300 ease-out"
-              style={{ width: `${((currentIndex + 1) / Math.max(1, filteredItems.length)) * 100}%` }}
-            />
-          </div>
-
-          <div className="flex shrink-0 items-center justify-between border-b border-border bg-card/60 px-7 py-3">
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <div className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: deck.color }} />
-              <span className="shrink-0 text-sm font-semibold">{deck.name}</span>
-              <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${kindMeta.bg} ${kindMeta.text}`}>
-                {kindMeta.label}
-              </span>
-              {selectedTags.size > 0 && (
-                <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
-                  <span className="shrink-0 text-xs text-muted-foreground">筛选:</span>
-                  <div className="flex gap-1 overflow-hidden">
-                    {Array.from(selectedTags)
-                      .slice(0, 2)
-                      .map((tag) => (
-                        <span
-                          key={tag}
-                          className="inline-flex max-w-[80px] shrink-0 items-center gap-0.5 truncate rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary"
-                        >
-                          {isTopTag(tag) && <Lock className="h-2.5 w-2.5 shrink-0" />}
-                          <span className="truncate">{tag}</span>
-                        </span>
-                      ))}
-                    {selectedTags.size > 2 && (
-                      <span className="shrink-0 text-xs text-muted-foreground">+{selectedTags.size - 2}</span>
-                    )}
-                  </div>
-                  <button
-                    onClick={clearTags}
-                    className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              )}
             </div>
-            <span className="ml-3 shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
-              {currentIndex + 1} / {filteredItems.length}
-            </span>
-          </div>
 
-          <div className="scrollbar-hide flex-1 overflow-y-auto px-7 py-6">
-            <div className="mx-auto max-w-[640px]">
-              {/* Item tags — view / edit */}
-              <div className="mb-3 flex min-h-[24px] flex-wrap items-start gap-1.5">
-                {itemTags.map((tag) => {
-                  const top = isTopTag(tag);
-                  if (tagEditMode) {
-                    return (
-                      <span
-                        key={tag}
-                        title={top ? topTagTitle : undefined}
-                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${
-                          top
-                            ? "border-primary/30 bg-primary/10 font-semibold text-primary"
-                            : "border-primary/20 bg-primary/10 font-medium text-primary"
-                        }`}
-                      >
-                        {top ? <Lock className="h-2.5 w-2.5" /> : "#"}
-                        {tag}
-                        {!top && (
-                          <button
-                            onClick={() => void removeTag(tag)}
-                            className="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-red-100 hover:text-red-600"
-                            title="移除标签"
+            <div className="scrollbar-hide flex-1 overflow-y-auto px-3 py-3">
+              {deckListContent(false)}
+            </div>
+
+            <div className="shrink-0 border-t border-border px-3 py-3">{syncEntry()}</div>
+          </aside>
+
+          {/* ── Center Panel ────────────────────────────────── */}
+          <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <div className="h-[3px] shrink-0 bg-muted">
+              <div
+                className="h-full bg-primary transition-all duration-300 ease-out"
+                style={{ width: `${((currentIndex + 1) / Math.max(1, filteredItems.length)) * 100}%` }}
+              />
+            </div>
+
+            <div className="flex shrink-0 items-center justify-between border-b border-border bg-card/60 px-7 py-3">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <div className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: deck.color }} />
+                <span className="shrink-0 text-sm font-semibold">{deck.name}</span>
+                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${kindMeta.bg} ${kindMeta.text}`}>
+                  {kindMeta.label}
+                </span>
+                {selectedTags.size > 0 && (
+                  <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+                    <span className="shrink-0 text-xs text-muted-foreground">筛选:</span>
+                    <div className="flex gap-1 overflow-hidden">
+                      {Array.from(selectedTags)
+                        .slice(0, 2)
+                        .map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex max-w-[80px] shrink-0 items-center gap-0.5 truncate rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary"
                           >
-                            <X className="h-2.5 w-2.5" />
-                          </button>
-                        )}
-                      </span>
-                    );
-                  }
-                  return (
-                    <button
-                      key={tag}
-                      onClick={() => toggleTag(tag)}
-                      title={top ? topTagTitle : undefined}
-                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors ${
-                        top
-                          ? selectedTags.has(tag)
-                            ? "border-primary bg-primary/15 font-semibold text-primary"
-                            : "border-primary/30 bg-primary/5 font-medium text-primary/80 hover:bg-primary/10"
-                          : selectedTags.has(tag)
-                            ? "border-primary/25 bg-primary/10 font-medium text-primary"
-                            : "border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-primary"
-                      }`}
-                    >
-                      {top ? <Lock className="h-2.5 w-2.5" /> : "#"}
-                      {tag}
-                    </button>
-                  );
-                })}
-
-                {tagEditMode && (
-                  <form
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      void addTag(newTagInput);
-                    }}
-                    className="inline-flex items-center gap-1"
-                  >
-                    <input
-                      type="text"
-                      value={newTagInput}
-                      onChange={(event) => setNewTagInput(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Escape") {
-                          setTagEditMode(false);
-                          setNewTagInput("");
-                        }
-                      }}
-                      placeholder="添加标签…"
-                      autoFocus
-                      className="w-24 rounded-full border border-dashed border-primary/50 bg-transparent px-2 py-0.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none"
-                    />
-                    {newTagInput.trim() && (
-                      <button
-                        type="submit"
-                        className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-white transition-colors hover:bg-primary/80"
-                      >
-                        <Check className="h-2.5 w-2.5" />
-                      </button>
-                    )}
-                  </form>
-                )}
-
-                {tagEditMode && (
-                  <button
-                    onClick={() => void restoreTags()}
-                    title="恢复卡组原始标签"
-                    className="inline-flex items-center gap-1 rounded-full border border-dashed border-muted-foreground/30 px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:border-muted-foreground/60 hover:text-foreground"
-                  >
-                    <RotateCcw className="h-2.5 w-2.5" />
-                    恢复默认
-                  </button>
-                )}
-
-                <button
-                  onClick={() => {
-                    setTagEditMode((value) => !value);
-                    setNewTagInput("");
-                  }}
-                  title={tagEditMode ? "完成编辑" : "编辑标签"}
-                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors ${
-                    tagEditMode
-                      ? "bg-primary text-white hover:bg-primary/80"
-                      : "bg-muted text-muted-foreground hover:bg-muted-foreground/20 hover:text-foreground"
-                  }`}
-                >
-                  {tagEditMode ? <Check className="h-3 w-3" /> : <Pencil className="h-3 w-3" />}
-                </button>
-
-                {editableTags.length === 0 && !tagEditMode && (
-                  <button
-                    onClick={() => setTagEditMode(true)}
-                    className="inline-flex items-center gap-1 rounded-full border border-dashed border-muted-foreground/25 px-2 py-0.5 text-xs text-muted-foreground/60 transition-colors hover:border-muted-foreground/50 hover:text-muted-foreground"
-                  >
-                    <Plus className="h-3 w-3" />添加标签
-                  </button>
-                )}
-              </div>
-
-              {/* Card */}
-              <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-                {item.image && (
-                  <div className="h-44 w-full overflow-hidden bg-muted">
-                    <img src={item.image} alt="卡片图片" className="h-full w-full object-cover" />
-                  </div>
-                )}
-                <div className="p-7">
-                  {item.kind === "display" && (
-                    <>
-                      <h2 className="mb-4 text-lg font-bold text-foreground">{item.front}</h2>
-                      {!flipped ? (
-                        <RevealButton
-                          revealed={false}
-                          onToggle={() => setFlipped(true)}
-                          showLabel="查看背面"
-                          hideLabel="收起"
-                        />
-                      ) : (
-                        <div className="border-t border-border pt-4">
-                          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">背面</p>
-                          <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground">{item.back}</pre>
-                          <button
-                            onClick={() => setFlipped(false)}
-                            className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                          >
-                            <EyeOff className="h-3.5 w-3.5" />收起
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  {(item.kind === "single" || item.kind === "multi") && (
-                    <>
-                      <p className="text-base font-medium leading-relaxed text-foreground">{item.content}</p>
-                      {item.kind === "multi" && <p className="mt-1.5 text-xs text-muted-foreground">可多选</p>}
-                      {renderOptions()}
-                    </>
-                  )}
-
-                  {item.kind === "truefalse" && (
-                    <>
-                      <p className="text-base font-medium leading-relaxed text-foreground">{item.content}</p>
-                      {renderTrueFalse()}
-                    </>
-                  )}
-
-                  {item.kind === "fill-q" && (
-                    <>
-                      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">填空题</p>
-                      {renderFillQ()}
-                    </>
-                  )}
-
-                  {item.kind === "cloze" && renderCloze()}
-
-                  {/* Meta */}
-                  {(item.chapter || item.section || item.difficulty) && (
-                    <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-3 text-xs text-muted-foreground">
-                      {item.chapter && <span>章节：{item.chapter}</span>}
-                      {item.section && <span>小节：{item.section}</span>}
-                      {item.difficulty && <span>难度：{item.difficulty}/5</span>}
-                    </div>
-                  )}
-
-                  {/* Submit / Result */}
-                  {isQuestionItem && (
-                    <div className="mt-6">
-                      {!isSubmitted ? (
-                        <div className="flex flex-wrap items-center gap-3">
-                          <button
-                            onClick={() => void handleSubmit()}
-                            disabled={!canSubmit() || submitting || (item.kind === "cloze" && clozeRevealed)}
-                            className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-35"
-                          >
-                            {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                            提交答案
-                          </button>
-                          {item.kind === "cloze" && (
-                            <>
-                              <RevealButton
-                                revealed={clozeRevealed}
-                                onToggle={() => setClozeRevealed((value) => !value)}
-                                showLabel="显示背面"
-                                hideLabel="收起答案"
-                              />
-                              {clozeRevealed && (
-                                <span className="text-xs text-muted-foreground">收起答案后可提交</span>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="flex flex-wrap items-center gap-3">
-                          <div
-                            className={`flex items-center gap-2.5 rounded-xl border px-4 py-3 text-sm font-semibold ${
-                              submitRecord!.isCorrect
-                                ? "border-green-200 bg-green-50 text-green-800"
-                                : "border-red-200 bg-red-50 text-red-800"
-                            }`}
-                          >
-                            {submitRecord!.isCorrect ? (
-                              <>
-                                <CheckCircle2 className="h-5 w-5 shrink-0 text-green-500" />回答正确！
-                              </>
-                            ) : (
-                              <>
-                                <XCircle className="h-5 w-5 shrink-0 text-red-500" />回答错误
-                              </>
-                            )}
-                          </div>
-                          <button
-                            onClick={handleRetry}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                          >
-                            <RotateCcw className="h-3.5 w-3.5" />
-                            重新作答
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Explanation */}
-                  {revealExplanation && item.explanation && (
-                    <div className="mt-4 rounded-xl border border-border bg-secondary/60 p-4">
-                      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">解析</p>
-                      <p className="text-sm leading-relaxed text-foreground">{item.explanation}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Navigation + Familiarity */}
-              <div className="mt-5 flex items-center justify-between">
-                <button
-                  onClick={() => navigate(-1)}
-                  disabled={currentIndex === 0}
-                  className="flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  <ChevronLeft className="h-4 w-4" />上一个
-                </button>
-
-                <div className="flex items-center gap-1.5">
-                  {(["familiar", "normal", "unfamiliar"] as Familiarity[]).map((value) => {
-                    const config = FAM_CONFIG[value];
-                    const isActive = familiarityMap[item.id] === value;
-                    return (
-                      <button
-                        key={value}
-                        onClick={() => void markFamiliarity(value)}
-                        className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
-                          isActive ? config.active : `border bg-transparent ${config.inactive}`
-                        }`}
-                        title={isActive ? "再次点击取消标记" : undefined}
-                      >
-                        {config.label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <button
-                  onClick={() => navigate(1)}
-                  disabled={currentIndex === filteredItems.length - 1}
-                  className="flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  下一个<ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </main>
-
-        {/* ── Right Panel ─────────────────────────────────── */}
-        <aside className="scrollbar-hide flex w-[248px] shrink-0 flex-col overflow-y-auto border-l border-border bg-card">
-          <div className="shrink-0 border-b border-border px-5 py-4">
-            <div className="flex items-center gap-2">
-              <BarChart2 className="h-4 w-4 text-primary" />
-              <h2 className="text-sm font-bold">累计统计</h2>
-            </div>
-          </div>
-
-          <div className="shrink-0 border-b border-border px-5 py-4">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">题目答题</p>
-            <div className="space-y-2.5">
-              <StatRow label="已作答" value={attempts.itemsAttempted} unit="题" color="text-foreground" />
-              <StatRow label="累计作答" value={attempts.total} unit="次" color="text-foreground" />
-              <StatRow label="答对" value={attempts.correct} unit="次" color="text-emerald-600" />
-              <StatRow label="答错" value={attempts.incorrect} unit="次" color="text-red-500" />
-              <div className="pt-2">
-                <div className="mb-1.5 flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">正确率</span>
-                  <span className="font-mono text-sm font-bold text-primary">{attempts.accuracy}%</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-primary transition-all duration-500"
-                    style={{ width: `${attempts.accuracy}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="shrink-0 border-b border-border px-5 py-4">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">熟悉度分布</p>
-            {famTotal > 0 ? (
-              <>
-                <ResponsiveContainer width="100%" height={130}>
-                  <PieChart>
-                    <Pie
-                      data={famData.filter((entry) => entry.value > 0)}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={35}
-                      outerRadius={54}
-                      paddingAngle={3}
-                      dataKey="value"
-                      strokeWidth={0}
-                    >
-                      {famData
-                        .filter((entry) => entry.value > 0)
-                        .map((entry, index) => (
-                          <Cell key={index} fill={entry.color} />
+                            {isTopTag(tag) && <Lock className="h-2.5 w-2.5 shrink-0" />}
+                            <span className="truncate">{tag}</span>
+                          </span>
                         ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        fontSize: "12px",
-                        borderRadius: "8px",
-                        border: "1px solid var(--border)",
-                        background: "white",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                      }}
-                      formatter={(value: number, name: string) => [`${value} 个`, name]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="mt-1 space-y-1.5">
-                  {famData.map((entry) => (
-                    <div key={entry.name} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
-                        <span className="text-xs text-muted-foreground">{entry.name}</span>
-                      </div>
-                      <span className="font-mono text-xs font-semibold text-foreground">
-                        {entry.value}
-                        <span className="ml-1 text-muted-foreground">
-                          ({famTotal > 0 ? Math.round((entry.value / famTotal) * 100) : 0}%)
-                        </span>
-                      </span>
+                      {selectedTags.size > 2 && (
+                        <span className="shrink-0 text-xs text-muted-foreground">+{selectedTags.size - 2}</span>
+                      )}
                     </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className="py-6 text-center">
-                <Brain className="mx-auto mb-2 h-8 w-8 text-muted-foreground/30" />
-                <p className="text-xs text-muted-foreground">在卡片下方标记熟悉度</p>
-                <p className="mt-0.5 text-xs text-muted-foreground/60">统计将在此显示</p>
+                    <button
+                      onClick={clearTags}
+                      className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+              <span className="ml-3 shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+                {currentIndex + 1} / {filteredItems.length}
+              </span>
+            </div>
 
-          <div className="px-5 py-4">
-            <div className="mb-3 flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="truncate text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {deck.name} · 本次顺序
-                </p>
-                <p className="mt-1 flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
-                  <Shuffle className="h-3 w-3 shrink-0" />
-                  <span>乱序</span>
-                  <span className="text-muted-foreground/50">·</span>
-                  <span>
-                    已完成 {completedInView}/{filteredItems.length}
-                  </span>
-                  {selectedTags.size > 0 && <span className="text-primary">· 已筛选</span>}
-                </p>
+            <div className="scrollbar-hide flex-1 overflow-y-auto px-7 py-6">
+              {cardContent}
+              <div className="mt-4">{cardActions}</div>
+            </div>
+          </main>
+
+          {/* ── Right Panel ─────────────────────────────────── */}
+          <aside className="scrollbar-hide flex w-[248px] shrink-0 flex-col overflow-y-auto border-l border-border bg-card">
+            <div className="shrink-0 border-b border-border px-5 py-4">
+              <div className="flex items-center gap-2">
+                <BarChart2 className="h-4 w-4 text-primary" />
+                <h2 className="text-sm font-bold">累计统计</h2>
               </div>
-              <button
-                type="button"
-                onClick={reshuffle}
-                disabled={filteredItems.length < 2}
-                title="重新乱序，并回到第 1 张"
-                aria-label="重新乱序"
-                className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
-              >
-                <Shuffle className="h-3.5 w-3.5" />
-              </button>
             </div>
-            <div className="space-y-1">
-              {filteredItems.map((candidate, index) => {
-                const isActive = index === currentIndex;
-                const familiarity = familiarityMap[candidate.id];
-                const submitted = submitMap[candidate.id];
-                return (
-                  <button
-                    key={candidate.id}
-                    onClick={() => jumpTo(index)}
-                    title={`第 ${index + 1} / ${filteredItems.length} 张（本次乱序顺序）`}
-                    className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs transition-colors ${
-                      isActive
-                        ? "bg-primary/10 font-semibold text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    <span className="w-4 shrink-0 text-center font-mono tabular-nums text-muted-foreground">{index + 1}</span>
-                    <span className="flex-1 truncate text-left">{formatItemTitle(candidate)}</span>
-                    {familiarity && (
-                      <div className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: FAM_COLORS[familiarity] }} />
-                    )}
-                    {submitted &&
-                      (submitted.isCorrect ? (
-                        <CheckCircle2 className="h-3 w-3 shrink-0 text-green-500" />
-                      ) : (
-                        <XCircle className="h-3 w-3 shrink-0 text-red-400" />
-                      ))}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </aside>
+            {statsContent}
+          </aside>
+        </div>
       </div>
     </>
   );

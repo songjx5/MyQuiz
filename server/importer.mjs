@@ -52,6 +52,7 @@ function itemParams(deckId, item, index, now) {
     title: item.title ?? null,
     content: item.content ?? null,
     payloadJson: toJson(itemPayload(item)),
+    tableJson: item.table ? toJson(item.table) : null,
     analysis: item.analysis ?? null,
     difficulty: item.difficulty ?? 3,
     importance: item.importance ?? null,
@@ -105,16 +106,17 @@ export function importDecks(db, decks, options = {}) {
 
   const upsertItem = db.prepare(`
     INSERT INTO items (
-      deck_id, id, type, stem, title, content, payload_json, analysis,
+      deck_id, id, type, stem, title, content, payload_json, table_json, analysis,
       difficulty, importance, chapter, section, image, assets_json, notes,
       frequency_json, source_json, status, language, sort_order, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(deck_id, id) DO UPDATE SET
       type = excluded.type,
       stem = excluded.stem,
       title = excluded.title,
       content = excluded.content,
       payload_json = excluded.payload_json,
+      table_json = excluded.table_json,
       analysis = excluded.analysis,
       difficulty = excluded.difficulty,
       importance = excluded.importance,
@@ -186,6 +188,7 @@ export function importDecks(db, decks, options = {}) {
           p.title,
           p.content,
           p.payloadJson,
+          p.tableJson,
           p.analysis,
           p.difficulty,
           p.importance,
@@ -251,6 +254,8 @@ function rowToExportedItem(row, tags) {
   Object.assign(item, payload);
   if (row.title !== null) item.title = row.title;
   if (row.content !== null) item.content = row.content;
+  const table = parseJson(row.table_json, null);
+  if (table) item.table = table;
   if (tags.length > 0) item.tags = tags;
   if (row.difficulty !== null) item.difficulty = row.difficulty;
   if (row.importance !== null) item.importance = row.importance;

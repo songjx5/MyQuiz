@@ -19,6 +19,27 @@ export interface OptionData {
   text: string;
 }
 
+export type TableAlign = 'left' | 'center' | 'right';
+
+/**
+ * 所有题型都可选的结构化表格。它不是独立题型，而是题干/知识内容的
+ * 一种呈现方式；文本字段中的 Markdown 管道表格由前端一并渲染。
+ */
+export interface TableData {
+  /** 表格标题，显示在表格上方。 */
+  caption?: string;
+  /** 表头；至少 1 列。 */
+  columns: string[];
+  /** 数据行；每一行的单元格数量必须与 columns 一致。 */
+  rows: string[][];
+  /** 每列对齐方式；省略时默认左对齐。 */
+  align?: TableAlign[];
+  /** 是否显示表头，默认 true。 */
+  header?: boolean;
+  /** 表格脚注，显示在表格下方。 */
+  footnote?: string;
+}
+
 export interface BaseItemData {
   id: string;
   type: ItemType;
@@ -28,6 +49,7 @@ export interface BaseItemData {
   section?: string;
   analysis?: string;
   image?: string;
+  table?: TableData;
   assets?: string[];
   notes?: string;
   importance?: number;

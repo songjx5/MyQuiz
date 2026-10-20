@@ -6,6 +6,11 @@ export const ITEM_TYPES = ['single', 'multi', 'judge', 'fill', 'knowledge', 'clo
 export const DECK_CATEGORIES = ['card', 'question'];
 export const STATUSES = ['draft', 'published', 'archived'];
 export const FAMILIARITIES = ['familiar', 'normal', 'unfamiliar'];
+export const TABLE_ALIGNS = ['left', 'center', 'right'];
+
+const MAX_TABLE_COLUMNS = 20;
+const MAX_TABLE_ROWS = 200;
+const MAX_TABLE_CELL_LENGTH = 2000;
 
 const SOURCE_KEYS = ['book', 'author', 'page', 'edition', 'publisher', 'isbn', 'url', 'note'];
 const COMMON_ITEM_KEYS = [
@@ -197,6 +202,123 @@ function normalizeOptions(value, pathName, errors) {
     options.push({ key, text });
   });
   return options;
+}
+
+function normalizeTable(value, pathName, errors) {
+  if (!isObject(value)) {
+    addError(errors, pathName, '必须是表格对象');
+    return null;
+  }
+
+  const table = {};
+  if (value.caption !== undefined) {
+    const caption = optionalString(value.caption, `${pathName}.caption`, errors);
+    if (caption !== undefined) table.caption = caption;
+  }
+  if (value.footnote !== undefined) {
+    const footnote = optionalString(value.footnote, `${pathName}.footnote`, errors);
+    if (footnote !== undefined) table.footnote = footnote;
+  }
+  if (value.header !== undefined) {
+    const header = normalizeBoolean(value.header, `${pathName}.header`, errors);
+    if (header !== undefined) table.header = header;
+  }
+
+  if (!Array.isArray(value.columns) || value.columns.length === 0) {
+    addError(errors, `${pathName}.columns`, '必须是非空字符串数组');
+    return null;
+  }
+  if (value.columns.length > MAX_TABLE_COLUMNS) {
+    addError(errors, `${pathName}.columns`, `最多允许 ${MAX_TABLE_COLUMNS} 列`);
+  }
+
+  const columns = [];
+  value.columns.forEach((column, index) => {
+    const label = nonEmptyString(column, `${pathName}.columns[${index}]`, errors);
+    if (label) columns.push(label);
+  });
+  if (columns.length === 0) return null;
+  table.columns = columns;
+
+  if (value.align !== undefined) {
+    if (!Array.isArray(value.align)) {
+      addError(errors, `${pathName}.align`, '必须是字符串数组');
+    } else if (value.align.length !== columns.length) {
+      addError(
+        errors,
+        `${pathName}.align`,
+        `对齐方式有 ${value.align.length} 项，但表格有 ${columns.length} 列`,
+      );
+    } else {
+      const align = [];
+      value.align.forEach((entry, index) => {
+        if (!TABLE_ALIGNS.includes(entry)) {
+          addError(
+            errors,
+            `${pathName}.align[${index}]`,
+            `必须是 ${TABLE_ALIGNS.join(' / ')}`,
+          );
+          return;
+        }
+        align.push(entry);
+      });
+      if (align.length === columns.length) table.align = align;
+    }
+  }
+
+  if (!Array.isArray(value.rows) || value.rows.length === 0) {
+    addError(errors, `${pathName}.rows`, '必须是非空数组');
+    return table;
+  }
+  if (value.rows.length > MAX_TABLE_ROWS) {
+    addError(errors, `${pathName}.rows`, `最多允许 ${MAX_TABLE_ROWS} 行`);
+  }
+
+  const rows = [];
+  value.rows.forEach((row, rowIndex) => {
+    if (!Array.isArray(row)) {
+      addError(errors, `${pathName}.rows[${rowIndex}]`, '必须是单元格数组');
+      return;
+    }
+    if (row.length !== columns.length) {
+      addError(
+        errors,
+        `${pathName}.rows[${rowIndex}]`,
+        `第 ${rowIndex + 1} 行有 ${row.length} 个单元格，但表头有 ${columns.length} 列`,
+      );
+    }
+    const cells = [];
+    for (let columnIndex = 0; columnIndex < columns.length; columnIndex += 1) {
+      const raw = row[columnIndex];
+      if (raw === undefined || raw === null) {
+        cells.push('');
+        continue;
+      }
+      if (typeof raw !== 'string' && typeof raw !== 'number' && typeof raw !== 'boolean') {
+        addError(
+          errors,
+          `${pathName}.rows[${rowIndex}][${columnIndex}]`,
+          '单元格必须是字符串、数字或布尔值',
+        );
+        cells.push('');
+        continue;
+      }
+      const text = String(raw).trim();
+      if (text.length > MAX_TABLE_CELL_LENGTH) {
+        addError(
+          errors,
+          `${pathName}.rows[${rowIndex}][${columnIndex}]`,
+          `单元格不能超过 ${MAX_TABLE_CELL_LENGTH} 个字符`,
+        );
+        cells.push(text.slice(0, MAX_TABLE_CELL_LENGTH));
+        continue;
+      }
+      cells.push(text);
+    }
+    rows.push(cells);
+  });
+  table.rows = rows;
+  return table;
 }
 
 function normalizeAnswerKeys(value, options, type, pathName, errors) {
@@ -398,6 +520,12 @@ function normalizeItem(raw, deck, pathName, errors, warnings) {
   if (item.analysis === undefined && typeof raw.explanation === 'string') {
     item.analysis = raw.explanation;
     addWarning(warnings, `${pathName}.explanation`, '已作为 analysis 处理，建议改用 analysis');
+  }
+
+  // 表格是所有题型都可选的内容呈现方式，例如带数据表的题目或对比表知识卡。
+  if (raw.table !== undefined) {
+    const table = normalizeTable(raw.table, `${pathName}.table`, errors);
+    if (table) item.table = table;
   }
 
   if (type === 'single' || type === 'multi') {

@@ -49,6 +49,10 @@ CREATE TABLE IF NOT EXISTS decks (
   updated_at  TEXT NOT NULL
 );
 
+-- 卡片内容；主键 (deck_id, id)。
+-- table_json 是所有题型可选的结构化表格内容，例如单选/判断题干中的对比表、
+-- 知识卡片背面的汇总表；没有表格时为 NULL。文本字段中的 Markdown 管道表格
+-- 仍原样保存在 TEXT 列中，由前端渲染。
 CREATE TABLE IF NOT EXISTS items (
   deck_id        TEXT NOT NULL,
   id             TEXT NOT NULL,
@@ -57,6 +61,7 @@ CREATE TABLE IF NOT EXISTS items (
   title          TEXT,
   content        TEXT,
   payload_json   TEXT NOT NULL DEFAULT '{}',
+  table_json     TEXT,
   analysis       TEXT,
   difficulty     INTEGER CHECK (difficulty IS NULL OR difficulty BETWEEN 1 AND 5),
   importance     INTEGER CHECK (importance IS NULL OR importance BETWEEN 1 AND 5),
@@ -139,4 +144,4 @@ CREATE TABLE IF NOT EXISTS user_item_tags (
   FOREIGN KEY (deck_id, item_id) REFERENCES items(deck_id, id) ON DELETE CASCADE
 );
 
-INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '1');
+INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '2');

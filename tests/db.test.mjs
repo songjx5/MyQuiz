@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { closeDatabase, openInitializedDatabase } from '../server/db.mjs';
+import { closeDatabase, openDatabase, openInitializedDatabase } from '../server/db.mjs';
 import { createUser } from '../server/auth.mjs';
 import { validateInput } from '../server/validate.mjs';
 import { exportDecks, importDecks } from '../server/importer.mjs';
@@ -45,6 +45,13 @@ const deckA = {
       answer: ['B'],
       tags: ['基础', '数学'],
       analysis: '2 + 2 = 4。',
+      table: {
+        caption: '加法示例',
+        columns: ['算式', '结果'],
+        rows: [['2 + 2', '4']],
+        align: ['left', 'right'],
+        footnote: '测试表格',
+      },
     },
   ],
 };
@@ -99,6 +106,16 @@ test('导入、复合键隔离、熟悉度覆盖与统计', () => {
     setFamiliarity(db, user.id, 'a', 'x', 'normal');
     assert.equal(getProgress(db, user.id, 'a', 'x').familiarity, 'normal');
 
+    // 表格是公共可选字段，必须原样存取。
+    const tableItem = getItem(db, 'a', 'x', user.id);
+    assert.deepEqual(tableItem.table, {
+      caption: '加法示例',
+      columns: ['算式', '结果'],
+      rows: [['2 + 2', '4']],
+      align: ['left', 'right'],
+      footnote: '测试表格',
+    });
+
     // 答题与统计。
     const item = getItem(db, 'a', 'x', user.id);
     const result = gradeItem(item, ['B']);
@@ -134,6 +151,7 @@ test('导入、复合键隔离、熟悉度覆盖与统计', () => {
     assert.equal(exported.find((entry) => entry.id === 'a').items[0].id, 'x');
     assert.equal(exported.find((entry) => entry.id === 'b').items[0].type, 'judge');
     assert.deepEqual(exported.find((entry) => entry.id === 'a').items[0].tags, ['单选题', '基础', '数学']);
+    assert.deepEqual(exported.find((entry) => entry.id === 'a').items[0].table, tableItem.table);
     assert.deepEqual(exported.find((entry) => entry.id === 'b').items[0].tags, ['单选题', '常识']);
   } finally {
     closeDatabase(db);
@@ -178,6 +196,41 @@ test('dry-run 不写入数据库', () => {
     assert.equal(getDeck(db, 'a', null), null);
   } finally {
     closeDatabase(db);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('打开 v1 数据库时会自动补充 items.table_json 列', () => {
+  fs.mkdirSync(TMP, { recursive: true });
+  const dir = fs.mkdtempSync(path.join(TMP, 'migrate-test-'));
+  const dbPath = path.join(dir, 'legacy.db');
+  const schemaPath = path.join(ROOT, 'server', 'schema.sql');
+  try {
+    const legacySchema = fs
+      .readFileSync(schemaPath, 'utf8')
+      .replace(/\n\s*table_json\s+TEXT,/, '');
+    assert.ok(!/table_json\s+TEXT/.test(legacySchema), '测试用 schema 不应再包含 table_json 列');
+
+    const legacy = openDatabase(dbPath);
+    legacy.exec(legacySchema);
+    legacy.close();
+
+    const db = openInitializedDatabase(dbPath);
+    try {
+      const columns = db
+        .prepare('PRAGMA table_info(items)')
+        .all()
+        .map((column) => column.name);
+      assert.ok(columns.includes('table_json'));
+
+      const validated = validateInput([deckA]);
+      assert.equal(validated.ok, true, JSON.stringify(validated.errors));
+      importDecks(db, validated.decks);
+      assert.deepEqual(getItem(db, 'a', 'x').table.rows, [['2 + 2', '4']]);
+    } finally {
+      closeDatabase(db);
+    }
+  } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
